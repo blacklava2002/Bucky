@@ -52,7 +52,7 @@ jobs:
           # A throwaway copy with a fake weather reading and messaging plugin, so the reply and send screens can be shown.
           ROOT=$PWD; DEMO=$(mktemp -d); cp -r . "$DEMO"; cat .github/emulator/demo-weather.js .github/emulator/demo-plugins.js >> "$DEMO/src/pkjs/index.js"
           (cd "$DEMO" && pebble build > /dev/null) || DEMO=$ROOT
-          for P in emery basalt; do
+          for P in chalk gabbro; do
             E="--emulator $P"
             press() { pebble emu-button click "$@" $E; sleep 1.5; }
             shoot() { pebble screenshot $E --no-open "$ROOT/shots/$P-$1.png" || true; }
