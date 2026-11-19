@@ -6,7 +6,7 @@
 #define BRAND_NAME "Bucky"
 
 // Home, reply and ringing screens.
-#define THEME_BG PBL_IF_COLOR_ELSE(GColorDarkGreen, GColorWhite)
+#define THEME_BG PBL_IF_COLOR_ELSE(GColorMidnightGreen, GColorWhite)
 #define THEME_FG PBL_IF_COLOR_ELSE(GColorWhite, GColorBlack)
 #define THEME_ACCENT PBL_IF_COLOR_ELSE(GColorChromeYellow, GColorBlack)
 // Lists are light, like the system's, with the accent on the selected row.

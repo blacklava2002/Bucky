@@ -208,7 +208,7 @@ character only touches these:
 - `src/pkjs/brand.js`: the name, the words you call it by, pin and operation ID prefix, the app
   UUID and any extra spoken names for agents.
 - `src/c/brand.h`: the name shown on the watch and the theme colours.
-- `resources/images/sprite_*.png` (84x102, `_big` 126x153 for Time 2 and Round 2, `~bw` for
+- `resources/images/sprite_*.png` (67x82, `_big` 101x122 for Time 2 and Round 2, `~bw` for
   black and white watches) and `menu_icon.png` / `menu_icon~bw.png` (25x25).
 - `package.json`: `name`, `displayName`, `uuid` (a new one, so both apps can be installed) and the
   author and links.
