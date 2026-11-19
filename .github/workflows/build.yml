@@ -1,0 +1,99 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Test the phone side
+        run: TZ=America/New_York npm test
+      - name: Install Pebble SDK
+        run: |
+          pipx install uv
+          pipx install pebble-tool
+          pebble sdk install latest
+      - name: Read the version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json version '$VERSION' isn't MAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          NAME=$(node -p "require('./package.json').pebble.displayName")
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "pbw=${NAME}_$VERSION.pbw" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: |
+          pebble build
+          cp build/*.pbw "${{ steps.version.outputs.pbw }}"
+      # Screenshots from the emulator, printed into the log as base64 between SHOT lines.
+      # Never fails the build: the emulator is a nice-to-have. Skipped on main so releases are quick.
+      - name: Screenshots
+        if: github.ref != 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 12
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libsdl2-2.0-0 libpixman-1-0 libfdt1 libglib2.0-0 > /dev/null
+          export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy
+          mkdir -p shots
+          # A throwaway copy with a fake weather reading and messaging plugin, so the reply and send screens can be shown.
+          ROOT=$PWD; DEMO=$(mktemp -d); cp -r . "$DEMO"; cat .github/emulator/demo-weather.js .github/emulator/demo-plugins.js >> "$DEMO/src/pkjs/index.js"
+          (cd "$DEMO" && pebble build > /dev/null) || DEMO=$ROOT
+          for P in emery basalt; do
+            E="--emulator $P"
+            press() { pebble emu-button click "$@" $E; sleep 1.5; }
+            shoot() { pebble screenshot $E --no-open "$ROOT/shots/$P-$1.png" || true; }
+            cd "$DEMO"; pebble install $E || { cd "$ROOT"; continue; }
+            pebble emu-time-format --format 12h $E || true
+            sleep 6
+            shoot home
+            press up; shoot prompts
+            press select; sleep 4; shoot reply
+            press down; shoot reply-scrolled
+            press down; shoot reply-end
+            press back; sleep 2
+            press up; press down; press select; sleep 4; shoot timer-set
+            press up; press down; press down; press down; press down; press select; sleep 4; shoot alarm-set
+            press down; shoot menu
+            press select; shoot alarms
+            press back; press down; press select; shoot timers
+            press back; press back; sleep 1
+            press up; for i in 1 2 3 4 5 6 7 8 9; do press down; done; press select; sleep 4; shoot message-check
+            press select; sleep 4; shoot message-sent
+            pebble kill || true
+            cd "$ROOT"
+          done
+          for f in shots/*.png; do echo "SHOT $f"; base64 -w0 "$f"; echo; echo "END SHOT"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.name }}_${{ steps.version.outputs.version }}
+          path: ${{ steps.version.outputs.pbw }}
+      # A release per version: bump "version" in package.json and push to main.
+      # A push that doesn't change the version still builds and tests, but publishes nothing.
+      - name: Publish a release for a new version
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+          PBW: ${{ steps.version.outputs.pbw }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "v$VERSION is already released; bump the version in package.json to publish a new one."
+            exit 0
+          fi
+          gh release create "v$VERSION" "$PBW" --target "$GITHUB_SHA" \
+            --title "$NAME $VERSION" --generate-notes

@@ -1,0 +1,23 @@
+Bucky watch app
+
+Bucky is its own app, under the MIT License (see LICENSE). Two parts come from Bobby (github.com/pebble-dev/bobby-assistant),
+Copyright 2025 Google LLC, licensed under the Apache License, Version 2.0. The license text is in
+licenses/bobby-apache-2.0.txt.
+
+- src/c/clock.c and src/c/clock.h are adapted from Bobby's alarm manager, with Bucky's own
+  changes (names, timers, and the list the menus and timeline pins read).
+- These icons are Bobby's, unchanged (Bobby's app/resources/icons/):
+    resources/images/action_prompts.png   from question_icon.png
+    resources/images/action_talk.png      from dictation_icon.png
+    resources/images/action_menu.png      from more_icon.png
+    resources/images/menu_alarms.png      from menu_alarms.png
+    resources/images/menu_alarms~bw.png   from menu_alarms_bw.png
+    resources/images/menu_timers.png      from menu_timers.png
+    resources/images/menu_timers~bw.png   from menu_timers_bw.png
+
+Everything else is Bucky's own: the rest of the code, the ringing icons (icon_*.png), and the
+Bucky sprite and menu icon (sprite_*.png, menu_icon*.png), drawn for this app.
+
+Billy (github.com/TomBolger/Billy, built from Bobby) and Bobby were inspiration for how Bucky
+works and looks, such as the home screen, the example prompts on Up and the Alarms and Timers
+menu. No code or art was taken from Billy.

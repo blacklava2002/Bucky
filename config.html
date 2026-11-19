@@ -1,0 +1,334 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings</title>
+<style>
+:root { color-scheme: light dark; --accent: #0aa; }
+body { font: 16px system-ui, -apple-system, sans-serif; margin: 0; padding: 20px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h3 { font-size: 15px; margin: 18px 0 4px; padding-top: 14px; border-top: 1px solid rgba(128,128,128,.25); }
+section.card { border: 1px solid rgba(128,128,128,.35); border-radius: 14px; padding: 0 14px 14px; margin: 16px 0;
+  background: rgba(128,128,128,.06); overflow: hidden; }
+section.card > h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; margin: 0 -14px 12px; padding: 10px 14px;
+  background: rgba(0,170,170,.14); border-bottom: 1px solid rgba(0,170,170,.35); color: inherit; }
+section.card > :last-child { margin-bottom: 0; }
+.hint { font-size: 13px; opacity: .7; margin: 6px 0 0; line-height: 1.35; }
+label.toggle .hint { display: block; margin-top: 2px; }
+ul.examples { list-style: none; margin: 6px 0 10px; padding: 0; font-size: 14px; opacity: .8; }
+ul.examples li { padding: 2px 0; }
+ul.examples li::before { content: '\201C'; } ul.examples li::after { content: '\201D'; }
+.row > span.label { flex: 1; }
+.agent { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px;
+  border: 1px solid rgba(128,128,128,.35); margin-bottom: 8px; }
+.agent.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.agent input { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+.agent .name { font-weight: 600; }
+.agent .state { font-size: 13px; opacity: .7; }
+.ready { color: #2a8; } .notready { color: #c60; }
+label.toggle { display: flex; align-items: flex-start; gap: 12px; margin: 10px 0; }
+label.toggle input { width: 20px; height: 20px; accent-color: var(--accent); margin: 2px 0 0; flex: 0 0 auto; }
+#status { font-size: 13px; opacity: .7; }
+select { width: 100%; font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid rgba(128,128,128,.5); background: transparent; color: inherit; }
+input[type=url], input[type=password] { display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 10px;
+  margin-top: 8px; border-radius: 10px; border: 1px solid rgba(128,128,128,.5); background: transparent; color: inherit; }
+textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; padding: 10px; border-radius: 10px;
+  border: 1px solid rgba(128,128,128,.35); background: transparent; color: inherit; }
+.row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+button { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; }
+button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.empty { padding: 12px; border-radius: 10px; background: rgba(200,120,0,.12); font-size: 14px; }
+</style>
+</head>
+<body>
+<h1 class="brand">Settings</h1>
+<div id="status">Waiting for the app...</div>
+
+<section class="card">
+<h2>Your AI agent</h2>
+<div id="agents"></div>
+<p class="hint">To use another agent just once:</p>
+<ul class="examples"><li>Tell Claude ...</li><li>Ask Grok ...</li><li>ChatGPT, ...</li></ul>
+</section>
+
+<section class="card">
+<h2>Listening</h2>
+<label class="toggle"><input type="checkbox" id="confirm">
+  <span>Confirm transcription<span class="hint">Shows what you said before <span class="brand">it</span> acts.</span></span></label>
+<label class="toggle"><input type="checkbox" id="quickTalk">
+  <span>Listen right away from quick launch</span></label>
+<label class="toggle"><input type="checkbox" id="quietListen">
+  <span>Quiet Time while listening<span class="hint">Stops notifications cutting you off. Your Quiet Time settings go back after.</span></span></label>
+<p class="hint" id="quietMissing" hidden>Needs a newer Pebble app.</p>
+</section>
+
+<section class="card">
+<h2>Example prompts</h2>
+<p class="hint">Press Up on the watch to pick one. One per line, up to 10.</p>
+<textarea id="prompts" rows="8"></textarea>
+<div class="row"><button id="savePrompts">Save</button> <button id="resetPrompts" class="quiet">Reset</button> <span id="promptsSaved" class="hint"></span></div>
+</section>
+
+<section class="card">
+<h2>What <span class="brand">it</span> does itself</h2>
+<p class="hint">Turn one off to send those requests to your agent.</p>
+<div id="features"></div>
+</section>
+
+<section class="card">
+<h2>Messages</h2>
+<ul class="examples"><li>Text Sam I'm on my way</li><li>Send a message to Mom saying call me</li><li>Tell my wife I'll be late</li></ul>
+<div class="row"><span class="label">Send with</span><span id="messengerBox"></span></div>
+<label class="toggle"><input type="checkbox" id="checkMessages">
+  <span>Check before sending<span class="hint">Select sends, Back cancels. Recommended.</span></span></label>
+<h3>Nicknames</h3>
+<p class="hint">One per line: contact name = what you call them.</p>
+<textarea id="aliases" rows="3" placeholder="Samantha = Sam, wife&#10;Mother = Mom"></textarea>
+<div class="row"><button id="saveAliases">Save</button> <span id="aliasesSaved" class="hint"></span></div>
+<p class="hint" id="knownContacts"></p>
+<div class="row" id="forgetRow" style="display:none"><button id="forgetContacts" class="quiet">Forget them</button></div>
+</section>
+
+<section class="card">
+<h2>Music and apps</h2>
+<ul class="examples"><li>Pause</li><li>Skip this song</li><li>What's playing?</li><li>Open Workout</li><li>Start the stopwatch</li></ul>
+<p class="hint">Opening an app closes <span class="brand">this app</span>.</p>
+</section>
+
+<section class="card">
+<h2>Notes and reminders</h2>
+<ul class="examples"><li>Note to self buy filters</li><li>Remind me to call Mom tomorrow at 9</li><li>Remind me in 20 minutes to check the oven</li><li>Add eggs to my shopping list</li></ul>
+<div class="row"><span class="label">Notes</span><select id="notePlugin" style="width:auto"></select></div>
+<div class="row"><span class="label">Reminders and lists</span><select id="reminderPlugin" style="width:auto"></select></div>
+<div id="indexBox"></div>
+</section>
+
+<section class="card">
+<h2>Weather</h2>
+<ul class="examples"><li>What's the weather?</li><li>Will I need an umbrella tomorrow?</li><li>Weather on Friday</li><li>When is sunset?</li></ul>
+<div class="row"><span class="label">Source</span><select id="weather" style="width:auto"></select></div>
+</section>
+
+<section class="card">
+<h2>Timers and alarms</h2>
+<ul class="examples"><li>Set a timer for 10 minutes</li><li>Pasta timer for 12 minutes</li><li>Set an alarm for 6:30 am</li><li>Dentist alarm December 3rd at 9am</li><li>Cancel my timer</li></ul>
+<p class="hint">Press Down on the watch to see or delete them.</p>
+<div class="row"><span class="label">Ring on</span><select id="clockOn" style="width:auto"></select></div>
+<p class="hint" id="clockHint"></p>
+<div class="row"><span class="label">Alarm vibration</span><select id="vibeAlarm" style="width:auto"></select></div>
+<div class="row"><span class="label">Timer vibration</span><select id="vibeTimer" style="width:auto"></select></div>
+</section>
+
+<script>
+var state = null;
+function el(id) { return document.getElementById(id); }
+
+function render(s) {
+  state = s;
+  if (s.brand) {
+    document.title = s.brand;
+    Array.prototype.forEach.call(document.querySelectorAll('.brand'), function (n) { n.textContent = s.brand; });
+  }
+  var box = el('agents');
+  box.innerHTML = '';
+  if (!s.pluginsSupported) {
+    box.innerHTML = '<div class="empty">Update the Pebble app, then turn on Settings &gt; Plugins.</div>';
+  } else if (!s.agents.length) {
+    box.innerHTML = '<div class="empty">No agents yet. Add Claude, Muse, Grok Bot or ChatGPT from the plugin store and sign in.</div>';
+  }
+  s.agents.forEach(function (a) {
+    var row = document.createElement('label');
+    row.className = 'agent' + (a.uuid === s.agent ? ' on' : '');
+    var radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'agent';
+    radio.checked = a.uuid === s.agent;
+    radio.onchange = function () { set({ agent: a.uuid }); };
+    var text = document.createElement('div');
+    var name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = a.name;
+    var st = document.createElement('div');
+    st.className = 'state ' + (a.ready === true ? 'ready' : a.ready === false ? 'notready' : '');
+    st.textContent = a.ready === true ? (a.hint || 'Ready') : a.ready === false ? (a.hint || 'Not signed in') : 'Checking...';
+    text.appendChild(name);
+    text.appendChild(st);
+    row.appendChild(radio);
+    row.appendChild(text);
+    box.appendChild(row);
+  });
+  if (document.activeElement !== el('prompts')) el('prompts').value = (s.prompts || []).join('\n');
+  el('confirm').checked = !!s.confirm;
+  el('quickTalk').checked = !!s.quickTalk;
+  el('quietListen').checked = !!s.quietListen;
+  el('quietListen').disabled = !s.quietAvailable && !s.quietListen;
+  el('quietMissing').hidden = !!s.quietAvailable;
+  var pick = el('weather');
+  pick.innerHTML = '';
+  var options = [{ uuid: '', name: 'Pebble app default' }].concat(s.weatherProviders || []);
+  options.forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o.uuid;
+    opt.textContent = o.name;
+    opt.selected = o.uuid === (s.weather || '');
+    pick.appendChild(opt);
+  });
+  renderMore(s);
+}
+
+var FEATURE_NAMES = [
+  ['weather', 'Weather'],
+  ['battery', 'Phone battery'],
+  ['findPhone', 'Find my phone'],
+  ['music', 'Music'],
+  ['apps', 'Open watch apps'],
+  ['messages', 'Messages'],
+  ['notes', 'Notes'],
+  ['reminders', 'Reminders and lists']
+];
+var VIBE_NAMES = ['Strong', 'Gentle', 'A few nudges', 'Silent'];
+
+function fillVibe(id, value) {
+  var pick = el(id);
+  pick.innerHTML = '';
+  VIBE_NAMES.forEach(function (name, i) {
+    var opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = name;
+    opt.selected = i === (value | 0);
+    pick.appendChild(opt);
+  });
+}
+
+function fillPlugins(id, list, chosen) {
+  var pick = el(id);
+  pick.innerHTML = '';
+  if (!list.length) {
+    var none = document.createElement('option');
+    none.textContent = 'None installed';
+    pick.appendChild(none);
+    pick.disabled = true;
+    return;
+  }
+  pick.disabled = false;
+  list.forEach(function (p) {
+    var opt = document.createElement('option');
+    opt.value = p.uuid;
+    opt.textContent = p.name;
+    opt.selected = p.uuid === chosen;
+    pick.appendChild(opt);
+  });
+}
+
+function renderMore(s) {
+  var box = el('features');
+  box.innerHTML = '';
+  FEATURE_NAMES.forEach(function (f) {
+    var row = document.createElement('label');
+    row.className = 'toggle';
+    var box2 = document.createElement('input');
+    box2.type = 'checkbox';
+    box2.checked = !s.features || s.features[f[0]] !== false;
+    box2.onchange = function () { var c = {}; c[f[0]] = box2.checked; set({ features: c }); };
+    var span = document.createElement('span');
+    span.textContent = f[1];
+    row.appendChild(box2);
+    row.appendChild(span);
+    box.appendChild(row);
+  });
+  var mbox = el('messengerBox');
+  mbox.innerHTML = '';
+  var list = s.messengers || [];
+  if (!list.length) {
+    var note = document.createElement('div');
+    note.className = 'empty';
+    note.innerHTML = 'No messaging plugin yet. Add Chat or Google Messages from the plugin store, or turn on Beeper in Index.';
+    mbox.appendChild(note);
+  }
+  var sel = document.createElement('select');
+  sel.style.width = 'auto';
+  list.forEach(function (m) {
+    var opt = document.createElement('option');
+    opt.value = m.uuid;
+    opt.textContent = m.name;
+    opt.selected = m.uuid === s.messenger;
+    sel.appendChild(opt);
+  });
+  if (!s.messenger) {
+    var none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'Choose';
+    none.selected = true;
+    sel.insertBefore(none, sel.firstChild);
+  }
+  sel.onchange = function () { set({ messenger: sel.value }); };
+  if (list.length) mbox.appendChild(sel);
+  el('checkMessages').checked = s.checkMessages !== false;
+  if (document.activeElement !== el('aliases')) el('aliases').value = s.aliases || '';
+  var known = s.knownContacts || [];
+  el('knownContacts').textContent = known.length ? 'Also known from past texts: ' + known.join(', ') + '.' : '';
+  el('forgetRow').style.display = known.length ? '' : 'none';
+  fillPlugins('notePlugin', s.notePlugins || [], s.notePlugin);
+  fillPlugins('reminderPlugin', s.reminderPlugins || [], s.reminderPlugin);
+  var idx = s.index || {};
+  el('indexBox').innerHTML = (s.notePlugins || []).length || (s.reminderPlugins || []).length ? '' :
+    '<div class="empty">No note or reminder plugins yet, so these go to your agent. Add one from the plugin store or turn on Index.</div>';
+  var where = el('clockOn');
+  where.innerHTML = '';
+  [['watch', 'Watch'], ['phone', 'Phone (Index)']].forEach(function (o) {
+    var opt = document.createElement('option');
+    opt.value = o[0];
+    opt.textContent = o[1];
+    opt.disabled = o[0] === 'phone' && !idx.clock;
+    opt.selected = o[0] === (s.clockOn || 'watch');
+    where.appendChild(opt);
+  });
+  el('clockHint').textContent = !idx.clock ? 'Phone needs Index\'s Timers & Alarms plugin.'
+    : s.clockOn === 'phone' ? 'Alarms more than a day away still ring on the watch.'
+    : 'Rings even when ' + (s.brand || 'the app') + ' is closed.';
+  fillVibe('vibeAlarm', s.vibeAlarm);
+  fillVibe('vibeTimer', s.vibeTimer);
+}
+
+function set(change) {
+  change.type = 'set';
+  Pebble.sendMessage('pkjs', change).then(render);
+}
+
+el('savePrompts').onclick = function () {
+  set({ prompts: el('prompts').value.split('\n') });
+  el('promptsSaved').textContent = 'Saved';
+};
+el('resetPrompts').onclick = function () {
+  if (state && state.defaultPrompts) el('prompts').value = state.defaultPrompts.join('\n');
+  set({ prompts: state && state.defaultPrompts ? state.defaultPrompts : [] });
+  el('promptsSaved').textContent = 'Back to the defaults';
+};
+el('confirm').onchange = function () { set({ confirm: el('confirm').checked }); };
+el('weather').onchange = function () { set({ weather: el('weather').value }); };
+el('checkMessages').onchange = function () { set({ checkMessages: el('checkMessages').checked }); };
+el('saveAliases').onclick = function () {
+  set({ aliases: el('aliases').value });
+  el('aliasesSaved').textContent = 'Saved';
+};
+el('forgetContacts').onclick = function () { set({ forgetContacts: true }); };
+el('notePlugin').onchange = function () { set({ notePlugin: el('notePlugin').value }); };
+el('reminderPlugin').onchange = function () { set({ reminderPlugin: el('reminderPlugin').value }); };
+el('clockOn').onchange = function () { set({ clockOn: el('clockOn').value }); };
+el('vibeAlarm').onchange = function () { set({ vibeAlarm: Number(el('vibeAlarm').value) }); };
+el('vibeTimer').onchange = function () { set({ vibeTimer: Number(el('vibeTimer').value) }); };
+el('quickTalk').onchange = function () { set({ quickTalk: el('quickTalk').checked }); };
+el('quietListen').onchange = function () { set({ quietListen: el('quietListen').checked }); };
+
+Pebble.addEventListener('message', function (e) {
+  if (e.data && e.data.type === 'state') render(e.data);
+});
+Pebble.addEventListener('ready', function (e) {
+  if (e.target !== 'pkjs') return;
+  el('status').textContent = 'Changes save straight away.';
+  Pebble.sendMessage('pkjs', { type: 'state' }).then(render);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+{
+  "name": "bucky",
+  "description": "A plugin-powered voice assistant for Pebble: talk to set timers and alarms, ask the weather, send texts, or hand off to Claude, Muse, Grok or ChatGPT.",
+  "author": "Blacklava2002",
+  "license": "MIT",
+  "version": "1.0.0",
+  "homepage": "https://github.com/blacklava2002/Bucky#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blacklava2002/Bucky.git"
+  },
+  "bugs": {
+    "url": "https://github.com/blacklava2002/Bucky/issues"
+  },
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "dependencies": {},
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "pebble": {
+    "displayName": "Bucky",
+    "uuid": "7f05c316-11a1-4eb6-b3bf-29f630ac7ff7",
+    "sdkVersion": "3",
+    "projectType": "native",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "capabilities": [
+      "configurable"
+    ],
+    "configPage": "config.html",
+    "messageKeys": [
+      "READY",
+      "TRANSCRIPT",
+      "REQ_ID",
+      "RESULT_OK",
+      "RESULT_TEXT",
+      "RESULT_DETAIL",
+      "CLOCK_KIND",
+      "CLOCK_TIME",
+      "CLOCK_LABEL",
+      "AGENT_NAME",
+      "CONFIRM",
+      "QUICK_TALK",
+      "PINS",
+      "PROMPTS",
+      "REPLY",
+      "CONFIRM_SEND",
+      "VIBE_ALARM",
+      "VIBE_TIMER",
+      "QUIET_LISTEN",
+      "LISTEN",
+      "LISTEN_READY"
+    ],
+    "resources": {
+      "media": [
+        {
+          "type": "bitmap",
+          "name": "SPRITE_IDLE",
+          "file": "images/sprite_idle.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_IDLE_BIG",
+          "file": "images/sprite_idle_big.png",
+          "targetPlatforms": [
+            "emery",
+            "gabbro"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_TALK",
+          "file": "images/sprite_talk.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_TALK_BIG",
+          "file": "images/sprite_talk_big.png",
+          "targetPlatforms": [
+            "emery",
+            "gabbro"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_WAVE",
+          "file": "images/sprite_wave.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_WAVE_BIG",
+          "file": "images/sprite_wave_big.png",
+          "targetPlatforms": [
+            "emery",
+            "gabbro"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_LISTEN",
+          "file": "images/sprite_listen.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "SPRITE_LISTEN_BIG",
+          "file": "images/sprite_listen_big.png",
+          "targetPlatforms": [
+            "emery",
+            "gabbro"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "MENU_ICON",
+          "file": "images/menu_icon.png",
+          "menuIcon": true
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_REPEAT",
+          "file": "images/icon_repeat.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_SNOOZE",
+          "file": "images/icon_snooze.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_SILENCE",
+          "file": "images/icon_silence.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ICON_DISMISS",
+          "file": "images/icon_dismiss.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ACTION_PROMPTS",
+          "file": "images/action_prompts.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ACTION_TALK",
+          "file": "images/action_talk.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ACTION_MENU",
+          "file": "images/action_menu.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "MENU_ALARMS",
+          "file": "images/menu_alarms.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "MENU_TIMERS",
+          "file": "images/menu_timers.png"
+        }
+      ]
+    },
+    "usesPermissions": [
+      {
+        "name": "Timeline",
+        "reason": "To show your timers and alarms in the timeline"
+      },
+      {
+        "name": "SendMessagesBeeper",
+        "reason": "To send texts you say through Beeper (Index), after you check them on the watch"
+      },
+      {
+        "name": "ReadWatchSettings",
+        "reason": "To see whether Quiet Time is on before turning it on while you talk"
+      },
+      {
+        "name": "WriteWatchSettings",
+        "reason": "To turn Quiet Time on while Bucky listens, if you choose that in settings, and put it back after"
+      },
+      {
+        "name": "SetIndexAlarms",
+        "reason": "To set alarms and timers on your phone, if you choose that in settings"
+      },
+      {
+        "name": "WriteIndexNotes",
+        "reason": "To save notes you say"
+      },
+      {
+        "name": "WriteIndexReminders",
+        "reason": "To set reminders and add to your lists"
+      },
+      {
+        "name": "FindMyPhone",
+        "reason": "To ring your phone when you say \"find my phone\""
+      },
+      {
+        "name": "Location",
+        "reason": "To get the weather where you are when you ask"
+      },
+      {
+        "name": "ControlMusic",
+        "reason": "To play, pause and skip songs when you ask"
+      },
+      {
+        "name": "ReadMusic",
+        "reason": "To tell you what's playing when you ask"
+      },
+      {
+        "name": "ReadApps",
+        "reason": "To find a watch app by name when you say \"launch\" or \"open\""
+      },
+      {
+        "name": "LaunchApps",
+        "reason": "To open that app for you"
+      }
+    ]
+  }
+}
