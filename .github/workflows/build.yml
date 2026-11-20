@@ -46,7 +46,7 @@ jobs:
       - name: Screenshots
         if: github.ref != 'refs/heads/main'
         continue-on-error: true
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq libsdl2-2.0-0 libpixman-1-0 libfdt1 libglib2.0-0 > /dev/null
           export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy
@@ -77,6 +77,25 @@ jobs:
             press select; sleep 4; shoot message-sent
             pebble kill || true
             cd "$ROOT"
+          done
+          # The home and reply screens again with colours picked in settings: a dark and a light pair.
+          for V in "dark 209 248" "light 239 241"; do
+            set -- $V; LOOK=$1
+            C=$(mktemp -d); cp -r "$DEMO/." "$C"; rm -rf "$C/build"
+            { printf "localStorage.setItem('bgColor','%s');localStorage.setItem('clockColor','%s');\n" "$2" "$3"; cat "$DEMO/src/pkjs/index.js"; } > "$C/src/pkjs/index.js"
+            (cd "$C" && pebble build > /dev/null) || continue
+            for P in emery basalt diorite; do
+              E="--emulator $P"
+              press() { pebble emu-button click "$@" $E; sleep 1.5; }
+              shoot() { pebble screenshot $E --no-open "$ROOT/shots/$P-$1-$LOOK.png" || true; }
+              cd "$C"; pebble install $E || { cd "$ROOT"; continue; }
+              pebble emu-time-format --format 12h $E || true
+              sleep 6
+              shoot home
+              press up; press select; sleep 4; shoot reply
+              pebble kill || true
+              cd "$ROOT"
+            done
           done
           for f in shots/*.png; do echo "SHOT $f"; base64 -w0 "$f"; echo; echo "END SHOT"; done
       - uses: actions/upload-artifact@v4
