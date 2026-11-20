@@ -18,6 +18,9 @@ var quietMod = require('./quiet');
 var sources = require('./sources');
 
 var AGENT_ACTION = 'send_to_agent';
+// "Isn't available" comes back before the plugin takes the message, so trying again can't
+// send it twice. Two more tries, two seconds apart, ride out a plugin that's waking up.
+var AGENT_RETRY = { tries: 2, delayMs: 2000 };
 // Store plugins from github.com/coredevices/pebble-apps, in the order we prefer them.
 var KNOWN_AGENTS = [
   { uuid: '0d33014e-5d56-42ea-9665-3ebf182b4cfb', name: 'Claude' },
@@ -417,12 +420,19 @@ function sendToAgent(agent, message, requestId) {
     return;
   }
   result(requestId, 2, 'Sending to ' + agent.name + '...', '"' + message + '"');
+  attemptAgent(agent, message, requestId, 0);
+}
+
+function attemptAgent(agent, message, requestId, retries) {
   var finished = false;
   Pebble.invokeAction({ plugin: agent.uuid, action: AGENT_ACTION, args: { message: message } })
     .then(function (res) {
       finished = true;
       if (res && res.ok) {
         result(requestId, 1, 'Sent to ' + agent.name, '"' + message + '"');
+      } else if (res && res.code === 'PLUGIN_UNAVAILABLE' && retries < AGENT_RETRY.tries) {
+        result(requestId, 2, 'Retrying ' + agent.name + ' (' + (retries + 1) + ' of ' + AGENT_RETRY.tries + ')...', res.message || '');
+        setTimeout(function () { attemptAgent(agent, message, requestId, retries + 1); }, AGENT_RETRY.delayMs);
       } else {
         var why = explain(agent, res || {});
         result(requestId, 0, why[0], why[1]);
@@ -629,8 +639,9 @@ function answerPhone(question, requestId) {
   });
 }
 
-// Turns a plugin error into a headline and a next step. Never retries: a timeout may
-// still have delivered, and the agent plugins ask callers not to resend blindly.
+// Turns a plugin error into a headline and a next step. Only "isn't available" is retried
+// (in attemptAgent): a timeout may still have delivered, and the agent plugins ask callers
+// not to resend blindly.
 function explain(agent, res) {
   var name = agent.name;
   switch (res.code) {
@@ -802,4 +813,4 @@ Pebble.addEventListener('appmessage', function (e) {
   }
 });
 
-module.exports = { handleTranscript: handleTranscript, listAgents: listAgents, explain: explain, syncPins: syncPins, cleanPrompts: cleanPrompts, DEFAULT_PROMPTS: DEFAULT_PROMPTS, runAction: runAction, confirmMessage: confirmMessage };
+module.exports = { handleTranscript: handleTranscript, listAgents: listAgents, explain: explain, syncPins: syncPins, cleanPrompts: cleanPrompts, DEFAULT_PROMPTS: DEFAULT_PROMPTS, runAction: runAction, confirmMessage: confirmMessage, AGENT_RETRY: AGENT_RETRY };
