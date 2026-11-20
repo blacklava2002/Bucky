@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -95,5 +97,15 @@ jobs:
             echo "v$VERSION is already released; bump the version in package.json to publish a new one."
             exit 0
           fi
+          PREV=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          RANGE=${PREV:+$PREV..}HEAD
+          section() {
+            LINES=$(git log --no-merges --format=%s "$RANGE" | grep -E "^$1(\([^)]*\))?!?: " | sed -E "s/^$1(\(([^)]*)\))?!?: /- **\2:** /; s/^- \*\*:\*\* /- /" || true)
+            if [ -n "$LINES" ]; then printf '## %s\n\n%s\n\n' "$2" "$LINES"; fi
+          }
+          { section feat Features; section fix Fixes; section perf Performance; } > notes.md
+          if [ ! -s notes.md ]; then echo "Maintenance release." > notes.md; fi
+          if [ -n "$PREV" ]; then echo "Changes since $PREV." >> notes.md; fi
+          cat notes.md
           gh release create "v$VERSION" "$PBW" --target "$GITHUB_SHA" \
-            --title "$NAME $VERSION" --generate-notes
+            --title "$NAME $VERSION" --notes-file notes.md
