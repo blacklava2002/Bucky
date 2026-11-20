@@ -442,6 +442,12 @@ void home_handle_result(int32_t request_id, int ok, const char *text, const char
     reply_window_push(text, reply);
     return;
   }
+  if (ok == 0 && detail && detail[0]) {
+    // A failure with a reason: show the reason, which the one-line status can't fit.
+    prv_finish(false, text, detail);
+    reply_window_push(text, detail);
+    return;
+  }
   prv_finish(ok == 1, text, detail && detail[0] ? detail : s_sub_text);
 }
 
