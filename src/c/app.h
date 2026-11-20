@@ -16,6 +16,16 @@ bool settings_quiet_listen(void);
 typedef enum { VibeStrong = 0, VibeGentle = 1, VibeNudge = 2, VibeOff = 3 } Vibe;
 Vibe settings_vibe(ClockKind kind);
 
+// Colours from settings (theme.c): the background, text that stays readable on it, the
+// clock and the reply headline. Each falls back to the app's own look.
+void theme_init(void);
+// Values are GColor8 argb bytes, 0 for the app's own. True when something changed.
+bool theme_set(int32_t bg, int32_t clock);
+GColor theme_bg(void);
+GColor theme_text(void);
+GColor theme_clock(void);
+GColor theme_accent(void);
+
 // Phone link (main.c).
 bool comm_send_transcript(const char *text, int32_t request_id, bool done_listening);
 bool comm_confirm_send(int32_t request_id);

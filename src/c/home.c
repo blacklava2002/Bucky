@@ -257,8 +257,8 @@ static void prv_up(ClickRecognizerRef rec, void *ctx) {
   ActionMenuConfig config = (ActionMenuConfig){
     .root_level = s_prompt_level,
     .colors = {
-      .background = PBL_IF_COLOR_ELSE(THEME_BG, GColorBlack),
-      .foreground = PBL_IF_COLOR_ELSE(THEME_FG, GColorWhite),
+      .background = PBL_IF_COLOR_ELSE(theme_bg(), GColorBlack),
+      .foreground = PBL_IF_COLOR_ELSE(theme_text(), GColorWhite),
     },
     .align = ActionMenuAlignTop,
     .did_close = prv_prompts_closed,
@@ -299,7 +299,7 @@ static void prv_start_talking(void *ctx) {
 static void prv_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
-  window_set_background_color(window, THEME_BG);
+  window_set_background_color(window, theme_bg());
 
   s_icon_prompts = gbitmap_create_with_resource(RESOURCE_ID_ACTION_PROMPTS);
   s_icon_talk = gbitmap_create_with_resource(RESOURCE_ID_ACTION_TALK);
@@ -325,7 +325,7 @@ static void prv_load(Window *window) {
   text_layer_set_font(s_time, fonts_get_system_font(time_font));
   text_layer_set_text_alignment(s_time, GTextAlignmentCenter);
   text_layer_set_background_color(s_time, GColorClear);
-  text_layer_set_text_color(s_time, THEME_FG);
+  text_layer_set_text_color(s_time, theme_clock());
   layer_add_child(root, text_layer_get_layer(s_time));
 
   // Two short lines for what the app is doing, under the time.
@@ -350,7 +350,7 @@ static void prv_load(Window *window) {
   text_layer_set_font(s_main, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   text_layer_set_text_alignment(s_main, GTextAlignmentCenter);
   text_layer_set_background_color(s_main, GColorClear);
-  text_layer_set_text_color(s_main, THEME_FG);
+  text_layer_set_text_color(s_main, theme_text());
   text_layer_set_overflow_mode(s_main, GTextOverflowModeTrailingEllipsis);
   layer_add_child(root, text_layer_get_layer(s_main));
 
@@ -411,7 +411,12 @@ void home_window_push(bool start_talking) {
 }
 
 void home_refresh_settings(void) {
-  // Nothing on the home screen shows a setting any more.
+  // The colours may have changed while the home screen is up.
+  if (!s_window || !s_time) return;
+  window_set_background_color(s_window, theme_bg());
+  text_layer_set_text_color(s_time, theme_clock());
+  text_layer_set_text_color(s_main, theme_text());
+  layer_mark_dirty(window_get_root_layer(s_window));
 }
 
 void home_handle_result(int32_t request_id, int ok, const char *text, const char *detail,

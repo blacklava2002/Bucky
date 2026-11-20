@@ -90,8 +90,29 @@ test('settings reach the watch on ready', () => {
   const h = host(PLUGINS, null);
   h.listeners.ready();
   const sent = h.sent.pop();
-  assert.deepEqual({ ...sent, PROMPTS: undefined }, { AGENT_NAME: 'Claude', CONFIRM: 0, QUICK_TALK: 1, QUIET_LISTEN: 0, VIBE_ALARM: 0, VIBE_TIMER: 0, PROMPTS: undefined });
+  assert.deepEqual({ ...sent, PROMPTS: undefined }, { AGENT_NAME: 'Claude', CONFIRM: 0, QUICK_TALK: 1, QUIET_LISTEN: 0, VIBE_ALARM: 0, VIBE_TIMER: 0, BG_COLOR: 0, CLOCK_COLOR: 0, PROMPTS: undefined });
   assert.equal(sent.PROMPTS.split('\n')[0], "What's the current weather?");
+});
+
+test('picked colours are checked, saved and sent to the watch', () => {
+  const h = host(PLUGINS, null);
+  h.listeners.ready();
+  let state;
+  h.listeners.configmessage({ data: { type: 'set', bgColor: 0xF8, clockColor: 300 }, respond: (s) => { state = s; } });
+  assert.equal(state.bgColor, 0xF8);
+  assert.equal(state.clockColor, 0);
+  assert.equal(state.colorWatch, true);
+  assert.ok(state.defaultColors.bg >= 192);
+  const sent = h.sent.pop();
+  assert.equal(sent.BG_COLOR, 0xF8);
+  assert.equal(sent.CLOCK_COLOR, 0);
+  h.listeners.configmessage({ data: { type: 'set', bgColor: 0, clockColor: 0xFC }, respond: (s) => { state = s; } });
+  assert.deepEqual([h.sent.pop().BG_COLOR, state.clockColor], [0, 0xFC]);
+});
+
+test('colours outside the 64 Pebble ones mean the default', () => {
+  const { cleanColor } = require('../src/pkjs/index.js');
+  assert.deepEqual([192, 255, 0, 191, 256, 200.5, 'x', -1, '197'].map(cleanColor), [192, 255, 0, 0, 0, 0, 0, 0, 197]);
 });
 
 test('the watch list becomes timeline pins, and old ones come down', () => {

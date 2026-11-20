@@ -210,6 +210,9 @@ static void prv_inbox(DictionaryIterator *iter, void *ctx) {
     s_vibe_timer = prv_int(iter, MESSAGE_KEY_VIBE_TIMER, 0);
     persist_write_int(PERSIST_KEY_VIBE_TIMER, s_vibe_timer);
   }
+  if (dict_find(iter, MESSAGE_KEY_BG_COLOR) || dict_find(iter, MESSAGE_KEY_CLOCK_COLOR)) {
+    if (theme_set(prv_int(iter, MESSAGE_KEY_BG_COLOR, 0), prv_int(iter, MESSAGE_KEY_CLOCK_COLOR, 0))) settings_changed = true;
+  }
   if (dict_find(iter, MESSAGE_KEY_QUIET_LISTEN)) {
     s_quiet_listen = prv_int(iter, MESSAGE_KEY_QUIET_LISTEN, 0) != 0;
     persist_write_bool(PERSIST_KEY_QUIET_LISTEN, s_quiet_listen);
@@ -245,6 +248,7 @@ static void prv_wakeup(WakeupId id, int32_t cookie) {
 
 static void prv_init(void) {
   prv_load_settings();
+  theme_init();
   prompts_init();
   clock_init();
   wakeup_service_subscribe(prv_wakeup);

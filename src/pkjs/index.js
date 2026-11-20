@@ -32,7 +32,8 @@ var STORE = { agent: 'agent', confirm: 'confirm', quickTalk: 'quickTalk', pins: 
   features: 'features', aliases: 'aliases', messenger: 'messenger', checkMessages: 'checkMessages',
   vibeAlarm: 'vibeAlarm', vibeTimer: 'vibeTimer', clockOn: 'clockOn',
   notePlugin: 'notePlugin', reminderPlugin: 'reminderPlugin', listPlugin: 'listPlugin', knownContacts: 'knownContacts',
-  chatNames: 'chatNames', quietListen: 'quietListen' };
+  chatNames: 'chatNames', quietListen: 'quietListen',
+  bgColor: 'bgColor', clockColor: 'clockColor' };
 // What the app does itself. Turn one off in settings and those words go to the agent instead.
 var FEATURES = ['weather', 'battery', 'findPhone', 'music', 'apps', 'messages', 'notes', 'reminders', 'lists'];
 // Ringing patterns, same numbers as ring.c: 0 strong, 1 gentle, 2 a few nudges, 3 silent.
@@ -244,6 +245,21 @@ function prompts() {
   return cleanPrompts(load(STORE.prompts, DEFAULT_PROMPTS));
 }
 
+// A colour from settings: a GColor8 argb byte with full alpha (192 to 255), or 0 for the
+// app's own.
+function cleanColor(value) {
+  var n = Number(value);
+  return n >= 192 && n <= 255 && Math.floor(n) === n ? n : 0;
+}
+
+function colorWatch() {
+  try {
+    var info = Pebble.getActiveWatchInfo && Pebble.getActiveWatchInfo();
+    if (info && /^(aplite|diorite|flint)$/.test(info.platform)) return false;
+  } catch (e) { /* unknown watch */ }
+  return true;
+}
+
 function pushSettings() {
   var agent = selectedAgent(listAgents());
   send({
@@ -253,6 +269,8 @@ function pushSettings() {
     QUIET_LISTEN: load(STORE.quietListen, false) ? 1 : 0,
     VIBE_ALARM: vibe(STORE.vibeAlarm),
     VIBE_TIMER: vibe(STORE.vibeTimer),
+    BG_COLOR: cleanColor(load(STORE.bgColor, 0)),
+    CLOCK_COLOR: cleanColor(load(STORE.clockColor, 0)),
     PROMPTS: prompts().join('\n')
   });
 }
@@ -727,6 +745,10 @@ function pageState() {
     checkMessages: !!load(STORE.checkMessages, true),
     vibeAlarm: vibe(STORE.vibeAlarm),
     vibeTimer: vibe(STORE.vibeTimer),
+    bgColor: cleanColor(load(STORE.bgColor, 0)),
+    clockColor: cleanColor(load(STORE.clockColor, 0)),
+    defaultColors: brand.colors || { bg: 192, clock: 255 },
+    colorWatch: colorWatch(),
     clockOn: load(STORE.clockOn, 'watch') === 'phone' ? 'phone' : 'watch',
     index: { clock: !!indexkit.find(Pebble.enumeratePlugins ? safePlugins() : [], indexkit.CLOCK, 'set_timer') },
     notePlugins: destinations.notePlugins(Pebble.enumeratePlugins ? safePlugins() : []).map(function (d) { return { uuid: d.uuid, name: d.name }; }),
@@ -783,6 +805,8 @@ Pebble.addEventListener('configmessage', function (e) {
     if (message.reminderPlugin !== undefined) save(STORE.reminderPlugin, String(message.reminderPlugin || ''));
     if (message.listPlugin !== undefined) save(STORE.listPlugin, String(message.listPlugin || ''));
     if (message.clockOn !== undefined) save(STORE.clockOn, message.clockOn === 'phone' ? 'phone' : 'watch');
+    if (message.bgColor !== undefined) save(STORE.bgColor, cleanColor(message.bgColor));
+    if (message.clockColor !== undefined) save(STORE.clockColor, cleanColor(message.clockColor));
     if (message.vibeTimer !== undefined) save(STORE.vibeTimer, VIBES.indexOf(message.vibeTimer | 0) >= 0 ? message.vibeTimer | 0 : 0);
     pushSettings();
     e.respond(pageState());
@@ -852,4 +876,4 @@ Pebble.addEventListener('appmessage', function (e) {
   }
 });
 
-module.exports = { handleTranscript: handleTranscript, listAgents: listAgents, explain: explain, syncPins: syncPins, cleanPrompts: cleanPrompts, DEFAULT_PROMPTS: DEFAULT_PROMPTS, runAction: runAction, confirmMessage: confirmMessage, AGENT_RETRY: AGENT_RETRY };
+module.exports = { handleTranscript: handleTranscript, listAgents: listAgents, explain: explain, syncPins: syncPins, cleanPrompts: cleanPrompts, DEFAULT_PROMPTS: DEFAULT_PROMPTS, runAction: runAction, confirmMessage: confirmMessage, AGENT_RETRY: AGENT_RETRY, cleanColor: cleanColor };

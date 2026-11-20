@@ -62,7 +62,9 @@
       "VIBE_TIMER",
       "QUIET_LISTEN",
       "LISTEN",
-      "LISTEN_READY"
+      "LISTEN_READY",
+      "BG_COLOR",
+      "CLOCK_COLOR"
     ],
     "resources": {
       "media": [

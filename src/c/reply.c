@@ -108,7 +108,7 @@ static void prv_load(Window *window) {
   text_layer_set_font(s_headline, head_font);
   text_layer_set_text_alignment(s_headline, head_align);
   text_layer_set_background_color(s_headline, GColorClear);
-  text_layer_set_text_color(s_headline, THEME_ACCENT);
+  text_layer_set_text_color(s_headline, theme_accent());
   scroll_layer_add_child(s_scroll, text_layer_get_layer(s_headline));
 
   int body_top = head_box.origin.y + head_box.size.h + 2;
@@ -124,7 +124,7 @@ static void prv_load(Window *window) {
   text_layer_set_font(s_body, body_font);
   text_layer_set_text_alignment(s_body, PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft));
   text_layer_set_background_color(s_body, GColorClear);
-  text_layer_set_text_color(s_body, THEME_FG);
+  text_layer_set_text_color(s_body, theme_text());
   scroll_layer_add_child(s_scroll, text_layer_get_layer(s_body));
 
   int content_h = body_box.origin.y + body_box.size.h + PBL_IF_ROUND_ELSE(30, 8);
@@ -152,7 +152,7 @@ static void prv_push(const char *headline, const char *body) {
     snprintf(s_body_text, sizeof(s_body_text), "%s", body ? body : "");
   }
   s_window = window_create();
-  window_set_background_color(s_window, THEME_BG);
+  window_set_background_color(s_window, theme_bg());
   window_set_window_handlers(s_window, (WindowHandlers) {
     .load = prv_load,
     .unload = prv_unload,

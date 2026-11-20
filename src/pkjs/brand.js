@@ -14,5 +14,8 @@ module.exports = {
   wake: 'bucky|buckie|buckey',
   // Extra spoken names for agent plugins, keyed by a word in the plugin's name,
   // like { muse: ['my assistant'] }. "Tell <name> ..." then goes to that agent.
-  agentAliases: {}
+  agentAliases: {},
+  // The watch's own colours (THEME_BG and THEME_FG in brand.h) as GColor8 argb bytes,
+  // for the settings page's preview.
+  colors: { bg: 197, clock: 255 }
 };

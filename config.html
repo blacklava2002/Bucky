@@ -37,6 +37,14 @@ textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 15px; 
   border: 1px solid rgba(128,128,128,.35); background: transparent; color: inherit; }
 .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
 button { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; }
+.swatches { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 8px; }
+.swatches button { aspect-ratio: 1; padding: 0; border-radius: 8px; border: 1px solid rgba(128,128,128,.45); }
+.swatches button.on { box-shadow: 0 0 0 2px var(--accent); border-color: transparent; }
+.swatches.bw { grid-template-columns: repeat(2, 56px); }
+.preview { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  height: 84px; border-radius: 14px; margin-top: 4px; border: 1px solid rgba(128,128,128,.35); }
+.preview .time { font-size: 38px; font-weight: 700; line-height: 1; }
+.preview .text { font-size: 13px; font-weight: 600; }
 button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 .empty { padding: 12px; border-radius: 10px; background: rgba(200,120,0,.12); font-size: 14px; }
 </style>
@@ -120,6 +128,18 @@ button.quiet { background: transparent; color: var(--accent); border: 1px solid 
 <p class="hint" id="clockHint"></p>
 <div class="row"><span class="label">Alarm vibration</span><select id="vibeAlarm" style="width:auto"></select></div>
 <div class="row"><span class="label">Timer vibration</span><select id="vibeTimer" style="width:auto"></select></div>
+</section>
+
+<section class="card">
+<h2>Colors</h2>
+<div class="preview" id="colorPreview"><span class="time">9:41</span><span class="text">Listening...</span></div>
+<div class="row"><span class="label">Background</span><button class="quiet" id="bgDefault">Default</button></div>
+<div class="swatches" id="bgSwatches"></div>
+<div id="clockBox">
+<div class="row"><span class="label">Clock</span><button class="quiet" id="clockDefault">Default</button></div>
+<div class="swatches" id="clockSwatches"></div>
+</div>
+<p class="hint" id="colorHint"></p>
 </section>
 
 <script>
@@ -293,6 +313,54 @@ function renderMore(s) {
     : 'Rings even when ' + (s.brand || 'the app') + ' is closed.';
   fillVibe('vibeAlarm', s.vibeAlarm);
   fillVibe('vibeTimer', s.vibeTimer);
+  renderColors(s);
+}
+
+// Pebble's 64 colours as GColor8 argb bytes: 0b11rrggbb.
+var LEVELS = ['00', '55', 'AA', 'FF'];
+function hex(argb) {
+  return '#' + LEVELS[(argb >> 4) & 3] + LEVELS[(argb >> 2) & 3] + LEVELS[argb & 3];
+}
+function light(argb) {
+  return 3 * ((argb >> 4) & 3) + 6 * ((argb >> 2) & 3) + (argb & 3) >= 15;
+}
+// What the watch will show, worked out as theme.c does it.
+function shown(s) {
+  var d = s.defaultColors || { bg: 192, clock: 255 };
+  var bg = s.bgColor || d.bg;
+  if (!s.colorWatch) bg = s.bgColor ? (light(s.bgColor) ? 255 : 192) : 255;
+  var text = s.bgColor || !s.colorWatch ? (light(bg) ? 192 : 255) : d.clock;
+  var clock = s.colorWatch && s.clockColor && s.clockColor !== bg ? s.clockColor : text;
+  return { bg: bg, text: text, clock: clock };
+}
+function fillSwatches(id, picked, choices, key) {
+  var box = el(id);
+  box.innerHTML = '';
+  box.className = 'swatches' + (choices.length < 8 ? ' bw' : '');
+  choices.forEach(function (argb) {
+    var b = document.createElement('button');
+    b.style.background = hex(argb);
+    b.title = hex(argb);
+    b.setAttribute('aria-label', hex(argb));
+    if (argb === picked) b.className = 'on';
+    b.onclick = function () { var c = {}; c[key] = argb; set(c); };
+    box.appendChild(b);
+  });
+}
+function renderColors(s) {
+  var all = [];
+  for (var i = 0; i < 64; i++) all.push(192 + i);
+  // Darks first, then by hue, so the grid reads in rows.
+  all.sort(function (a, b) { return (light(a) - light(b)) || (a - b); });
+  fillSwatches('bgSwatches', s.bgColor, s.colorWatch ? all : [192, 255], 'bgColor');
+  fillSwatches('clockSwatches', s.clockColor, all, 'clockColor');
+  el('clockBox').style.display = s.colorWatch ? '' : 'none';
+  el('colorHint').textContent = s.colorWatch ? 'Other text turns black or white to stay readable.'
+    : 'This watch shows black or white.';
+  var look = shown(s), p = el('colorPreview');
+  p.style.background = hex(look.bg);
+  p.querySelector('.time').style.color = hex(look.clock);
+  p.querySelector('.text').style.color = hex(look.text);
 }
 
 function set(change) {
@@ -324,6 +392,8 @@ el('clockOn').onchange = function () { set({ clockOn: el('clockOn').value }); };
 el('vibeAlarm').onchange = function () { set({ vibeAlarm: Number(el('vibeAlarm').value) }); };
 el('vibeTimer').onchange = function () { set({ vibeTimer: Number(el('vibeTimer').value) }); };
 el('quickTalk').onchange = function () { set({ quickTalk: el('quickTalk').checked }); };
+el('bgDefault').onclick = function () { set({ bgColor: 0 }); };
+el('clockDefault').onclick = function () { set({ clockColor: 0 }); };
 el('quietListen').onchange = function () { set({ quietListen: el('quietListen').checked }); };
 
 Pebble.addEventListener('message', function (e) {

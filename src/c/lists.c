@@ -114,8 +114,8 @@ static void prv_show_state(void) {
   layer_set_hidden(menu_layer_get_layer(s_menu), empty);
   layer_set_hidden(text_layer_get_layer(s_empty), !empty);
   layer_set_hidden(bitmap_layer_get_layer(s_sprite), !empty);
-  window_set_background_color(s_window, empty ? THEME_BG : LIST_BG);
-  status_bar_layer_set_colors(s_status, empty ? THEME_BG : LIST_BG, empty ? THEME_FG : LIST_FG);
+  window_set_background_color(s_window, empty ? theme_bg() : LIST_BG);
+  status_bar_layer_set_colors(s_status, empty ? theme_bg() : LIST_BG, empty ? theme_text() : LIST_FG);
   status_bar_layer_set_separator_mode(s_status, empty ? StatusBarLayerSeparatorModeNone : StatusBarLayerSeparatorModeDotted);
   if (empty) {
     window_set_click_config_provider(s_window, NULL);
@@ -150,8 +150,8 @@ static void prv_select(MenuLayer *menu, MenuIndex *index, void *ctx) {
   ActionMenuConfig config = (ActionMenuConfig){
     .root_level = level,
     .colors = {
-      .background = PBL_IF_COLOR_ELSE(THEME_BG, GColorBlack),
-      .foreground = PBL_IF_COLOR_ELSE(THEME_FG, GColorWhite),
+      .background = PBL_IF_COLOR_ELSE(theme_bg(), GColorBlack),
+      .foreground = PBL_IF_COLOR_ELSE(theme_text(), GColorWhite),
     },
     .align = ActionMenuAlignCenter,
     .did_close = prv_action_closed,
@@ -200,7 +200,7 @@ static void prv_load(Window *window) {
   text_layer_set_font(s_empty, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
   text_layer_set_text_alignment(s_empty, GTextAlignmentCenter);
   text_layer_set_background_color(s_empty, GColorClear);
-  text_layer_set_text_color(s_empty, THEME_FG);
+  text_layer_set_text_color(s_empty, theme_text());
   text_layer_set_text(s_empty, s_empty_text);
   layer_add_child(root, text_layer_get_layer(s_empty));
 
