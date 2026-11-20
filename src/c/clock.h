@@ -3,10 +3,13 @@
 #pragma once
 #include <pebble.h>
 
-#define CLOCK_MAX_ITEMS 8
+// Kept on the watch; only the 8 soonest hold one of the app's 8 wakeups (clock.c).
+#define CLOCK_MAX_ITEMS 24
 #define CLOCK_LABEL_LEN 19
 // A reminder's words; the label keeps only the start of them.
 #define CLOCK_TEXT_LEN 64
+// How many items can keep long words; the rest keep the short label.
+#define CLOCK_TEXT_SLOTS 16
 
 typedef enum {
   ClockKindTimer = 1,
@@ -14,17 +17,17 @@ typedef enum {
   ClockKindReminder = 3,
 } ClockKind;
 
-// 32 bytes, so all eight fit in one 256-byte persist slot.
+// 32 bytes, so eight fit in one 256-byte persist slot.
 typedef struct {
   int32_t when;
-  int32_t wakeup_id;
+  int32_t wakeup_id;  // 0 while it waits for one of the 8 wakeups
   int32_t duration;  // a timer's length in seconds, so it can be repeated; 0 for alarms
   uint8_t kind;
   char label[CLOCK_LABEL_LEN];
 } ClockItem;
 
 void clock_init(void);
-// Returns S_SUCCESS or a negative StatusCode (E_RANGE, E_INVALID_ARGUMENT, E_OUT_OF_RESOURCES).
+// Returns S_SUCCESS or a negative StatusCode (E_INVALID_ARGUMENT, E_OUT_OF_RESOURCES).
 // A label longer than CLOCK_LABEL_LEN is kept whole (up to CLOCK_TEXT_LEN) for clock_text.
 StatusCode clock_add(time_t when, ClockKind kind, const char *label, int32_t duration);
 int clock_count(void);

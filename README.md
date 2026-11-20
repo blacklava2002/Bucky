@@ -83,7 +83,7 @@ your agent instead.
 - **Reminders:** "remind me to call the plumber tomorrow at 9", "remind me in 20 minutes to
   check the oven". On the watch by default: they ring like alarms (Up snoozes 5 minutes), get a
   timeline pin, and show under Reminders in the Down menu. "What reminders do I have?" and
-  "cancel the dentist reminder" work too. They share the watch's 8 slots with timers and alarms.
+  "cancel the dentist reminder" work too. Up to 24 timers, alarms and reminders in all.
   Or pick a reminders plugin in settings: Reminders (Index), Google Tasks, Obsidian, Remember The
   Milk, TickTick, Todoist, Tasks.org, or any plugin with `create_reminder`. Bucky works out the
   date and time for the store plugins. A time it can't read gets "When is that?" rather than a
@@ -122,8 +122,11 @@ your agent instead.
 - **The watch's built-in Alarms and Timer apps.** PebbleOS has no way for an app or plugin to
   create those today: apps can only peek at the next system alarm, and the built-in watch
   plugins only list and launch apps. So timers and alarms are Bucky's own (watch wakeups,
-  like Bobby's), up to 8 at once, and two can't ring within a minute of each other. With the
-  Index app, they can ring on the phone instead (see above).
+  like Bobby's). PebbleOS gives an app 8 wakeups, so Bucky keeps up to 24 and arms the 8
+  soonest, arming the next each time one rings or the app opens. Two due in the same minute
+  ring a minute apart. If the watch is off when one is due, it rings when the watch is back on
+  within the hour, and is dropped after that. With the Index app, timers and alarms can ring
+  on the phone instead (see above).
 - **Agent replies on the watch.** The agent plugins only send today. The reply screen is ready
   for them when they answer.
 - **Charging state.** The Phone plugin gives the battery level, not whether it's charging.
