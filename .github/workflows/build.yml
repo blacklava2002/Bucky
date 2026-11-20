@@ -79,6 +79,8 @@ jobs:
             cd "$ROOT"
           done
           # The home and reply screens again with colours picked in settings: a dark and a light pair.
+          # Wiped first, so a timer set above can't ring over these.
+          pebble wipe > /dev/null 2>&1 || true
           for V in "dark 209 248" "light 239 241"; do
             set -- $V; LOOK=$1
             C=$(mktemp -d); cp -r "$DEMO/." "$C"; rm -rf "$C/build"

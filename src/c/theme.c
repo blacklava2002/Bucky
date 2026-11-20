@@ -64,8 +64,9 @@ GColor theme_clock(void) {
 GColor theme_accent(void) {
   if (!s_bg) return THEME_ACCENT;
 #if defined(PBL_COLOR)
+  // Keep the accent only when it stands well apart from the picked background.
   int gap = prv_brightness(THEME_ACCENT) - prv_brightness(theme_bg());
-  if (gap >= 8 || gap <= -8) return THEME_ACCENT;
+  if (gap >= 15 || gap <= -15) return THEME_ACCENT;
 #endif
   return theme_text();
 }
