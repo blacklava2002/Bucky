@@ -94,7 +94,7 @@ static bool s_comm_open;
 static void prv_sync(void *ctx) {
   s_sync_timer = NULL;
   if (!s_sync_pending) return;
-  char text[CLOCK_MAX_ITEMS * (CLOCK_TEXT_LEN + 32) + 1];
+  static char text[CLOCK_MAX_ITEMS * (CLOCK_TEXT_LEN + 32) + 1];
   size_t used = 0;
   text[0] = '\0';
   for (int i = 0; i < clock_count() && used < sizeof(text); i++) {
@@ -249,7 +249,8 @@ static void prv_init(void) {
   clock_init();
   wakeup_service_subscribe(prv_wakeup);
   app_message_register_inbox_received(prv_inbox);
-  app_message_open(1024, 1024);
+  // The outbox carries the whole timer, alarm and reminder list for the timeline pins.
+  app_message_open(1024, sizeof("PINS") + CLOCK_MAX_ITEMS * (CLOCK_TEXT_LEN + 32) + 64);
   s_comm_open = true;
   // Bring the phone's pins up to date with whatever changed while it wasn't listening.
   clock_changed();
