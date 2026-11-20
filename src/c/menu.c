@@ -1,19 +1,20 @@
-// The Down menu, like Bobby's but with only Alarms and Timers.
+// The Down menu, like Bobby's but with only Alarms, Timers and Reminders.
 #include "app.h"
 
 static Window *s_window;
 static StatusBarLayer *s_status;
 static MenuLayer *s_menu;
-static GBitmap *s_icons[2];
+static GBitmap *s_icons[3];
 
-static const char *const TITLES[2] = { "Alarms", "Timers" };
+static const char *const TITLES[3] = { "Alarms", "Timers", "Reminders" };
+static const ClockKind KINDS[3] = { ClockKindAlarm, ClockKindTimer, ClockKindReminder };
 
 static uint16_t prv_rows(MenuLayer *menu, uint16_t section, void *ctx) {
-  return 2;
+  return 3;
 }
 
 static void prv_draw_row(GContext *ctx, const Layer *cell, MenuIndex *index, void *data) {
-  ClockKind kind = index->row == 0 ? ClockKindAlarm : ClockKindTimer;
+  ClockKind kind = KINDS[index->row];
   int count = 0;
   for (int i = 0; i < clock_count(); i++) {
     if (clock_get(i)->kind == kind) count++;
@@ -24,7 +25,7 @@ static void prv_draw_row(GContext *ctx, const Layer *cell, MenuIndex *index, voi
 }
 
 static void prv_select(MenuLayer *menu, MenuIndex *index, void *ctx) {
-  clock_list_push(index->row == 0 ? ClockKindAlarm : ClockKindTimer);
+  clock_list_push(KINDS[index->row]);
 }
 
 static void prv_load(Window *window) {
@@ -33,6 +34,7 @@ static void prv_load(Window *window) {
   window_set_background_color(window, LIST_BG);
   s_icons[0] = gbitmap_create_with_resource(RESOURCE_ID_MENU_ALARMS);
   s_icons[1] = gbitmap_create_with_resource(RESOURCE_ID_MENU_TIMERS);
+  s_icons[2] = gbitmap_create_with_resource(RESOURCE_ID_MENU_REMINDERS);
 
   s_status = status_bar_layer_create();
   status_bar_layer_set_colors(s_status, LIST_BG, LIST_FG);
@@ -59,7 +61,7 @@ static void prv_appear(Window *window) {
 static void prv_unload(Window *window) {
   menu_layer_destroy(s_menu);
   status_bar_layer_destroy(s_status);
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < 3; i++) {
     gbitmap_destroy(s_icons[i]);
     s_icons[i] = NULL;
   }

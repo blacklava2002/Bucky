@@ -100,7 +100,9 @@ button.quiet { background: transparent; color: var(--accent); border: 1px solid 
 <h2>Notes and reminders</h2>
 <ul class="examples"><li>Note to self buy filters</li><li>Remind me to call Mom tomorrow at 9</li><li>Remind me in 20 minutes to check the oven</li><li>Add eggs to my shopping list</li></ul>
 <div class="row"><span class="label">Notes</span><select id="notePlugin" style="width:auto"></select></div>
-<div class="row"><span class="label">Reminders and lists</span><select id="reminderPlugin" style="width:auto"></select></div>
+<div class="row"><span class="label">Reminders</span><select id="reminderPlugin" style="width:auto"></select></div>
+<p class="hint">On the watch: they ring like alarms, with a pin on your timeline.<br>They share the watch's 8 slots with timers and alarms.</p>
+<div class="row"><span class="label">Lists</span><select id="listPlugin" style="width:auto"></select></div>
 <div id="indexBox"></div>
 </section>
 
@@ -185,7 +187,8 @@ var FEATURE_NAMES = [
   ['apps', 'Open watch apps'],
   ['messages', 'Messages'],
   ['notes', 'Notes'],
-  ['reminders', 'Reminders and lists']
+  ['reminders', 'Reminders'],
+  ['lists', 'Lists']
 ];
 var VIBE_NAMES = ['Strong', 'Gentle', 'A few nudges', 'Silent'];
 
@@ -271,9 +274,10 @@ function renderMore(s) {
   el('forgetRow').style.display = known.length ? '' : 'none';
   fillPlugins('notePlugin', s.notePlugins || [], s.notePlugin);
   fillPlugins('reminderPlugin', s.reminderPlugins || [], s.reminderPlugin);
+  fillPlugins('listPlugin', s.listPlugins || [], s.listPlugin);
   var idx = s.index || {};
-  el('indexBox').innerHTML = (s.notePlugins || []).length || (s.reminderPlugins || []).length ? '' :
-    '<div class="empty">No note or reminder plugins yet, so these go to your agent. Add one from the plugin store or turn on Index.</div>';
+  el('indexBox').innerHTML = (s.notePlugins || []).length || (s.listPlugins || []).length ? '' :
+    '<div class="empty">No note or list plugins yet, so notes and lists go to your agent.<br>Add one from the plugin store or turn on Index.</div>';
   var where = el('clockOn');
   where.innerHTML = '';
   [['watch', 'Watch'], ['phone', 'Phone (Index)']].forEach(function (o) {
@@ -315,6 +319,7 @@ el('saveAliases').onclick = function () {
 el('forgetContacts').onclick = function () { set({ forgetContacts: true }); };
 el('notePlugin').onchange = function () { set({ notePlugin: el('notePlugin').value }); };
 el('reminderPlugin').onchange = function () { set({ reminderPlugin: el('reminderPlugin').value }); };
+el('listPlugin').onchange = function () { set({ listPlugin: el('listPlugin').value }); };
 el('clockOn').onchange = function () { set({ clockOn: el('clockOn').value }); };
 el('vibeAlarm').onchange = function () { set({ vibeAlarm: Number(el('vibeAlarm').value) }); };
 el('vibeTimer').onchange = function () { set({ vibeTimer: Number(el('vibeTimer').value) }); };

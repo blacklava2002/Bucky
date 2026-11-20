@@ -1,4 +1,4 @@
-// Watch-local timers and alarms.
+// Watch-local timers, alarms and reminders.
 // Adapted from Bobby's alarm manager (Apache 2.0, Copyright 2025 Google LLC).
 #include "clock.h"
 
@@ -7,6 +7,15 @@
 #define PERSIST_KEY_V1_COUNT 101
 #define PERSIST_KEY_ITEMS 102
 #define PERSIST_KEY_COUNT 103
+// Long labels (a reminder's words), one slot per key, matched to items by wakeup id.
+#define PERSIST_KEY_TEXT_BASE 110
+
+typedef struct {
+  int32_t wakeup_id;
+  char text[CLOCK_TEXT_LEN];
+} ClockText;
+
+static ClockText s_texts[CLOCK_MAX_ITEMS];
 
 typedef struct {
   int32_t when;
@@ -61,6 +70,66 @@ static void prv_sort(void) {
   }
 }
 
+// ------------------------------------------------------------ long labels
+
+static ClockText *prv_text_find(int32_t id) {
+  if (id <= 0) return NULL;
+  for (int i = 0; i < CLOCK_MAX_ITEMS; i++) {
+    if (s_texts[i].wakeup_id == id) return &s_texts[i];
+  }
+  return NULL;
+}
+
+static void prv_text_write(int slot) {
+  if (s_texts[slot].wakeup_id) persist_write_data(PERSIST_KEY_TEXT_BASE + slot, &s_texts[slot], sizeof(ClockText));
+  else persist_delete(PERSIST_KEY_TEXT_BASE + slot);
+}
+
+static void prv_text_drop(int32_t id) {
+  ClockText *t = prv_text_find(id);
+  if (!t) return;
+  memset(t, 0, sizeof(*t));
+  prv_text_write(t - s_texts);
+}
+
+static void prv_text_put(int32_t id, const char *text) {
+  for (int i = 0; i < CLOCK_MAX_ITEMS; i++) {
+    if (s_texts[i].wakeup_id) continue;
+    s_texts[i].wakeup_id = id;
+    strncpy(s_texts[i].text, text, CLOCK_TEXT_LEN - 1);
+    s_texts[i].text[CLOCK_TEXT_LEN - 1] = '\0';
+    prv_text_write(i);
+    return;
+  }
+}
+
+static bool prv_alive(int32_t id) {
+  for (int i = 0; i < s_count; i++) {
+    if (s_items[i].wakeup_id == id) return true;
+  }
+  return false;
+}
+
+// Reads the long labels and forgets any whose item is gone.
+static void prv_text_load(void) {
+  memset(s_texts, 0, sizeof(s_texts));
+  for (int i = 0; i < CLOCK_MAX_ITEMS; i++) {
+    if (!persist_exists(PERSIST_KEY_TEXT_BASE + i)) continue;
+    persist_read_data(PERSIST_KEY_TEXT_BASE + i, &s_texts[i], sizeof(ClockText));
+    s_texts[i].text[CLOCK_TEXT_LEN - 1] = '\0';
+    if (!prv_alive(s_texts[i].wakeup_id)) {
+      memset(&s_texts[i], 0, sizeof(ClockText));
+      persist_delete(PERSIST_KEY_TEXT_BASE + i);
+    }
+  }
+}
+
+const char *clock_text(const ClockItem *item) {
+  if (!item) return "";
+  ClockText *t = prv_text_find(item->wakeup_id);
+  return t ? t->text : item->label;
+}
+
 void clock_init(void) {
   s_count = 0;
   memset(s_items, 0, sizeof(s_items));
@@ -76,6 +145,7 @@ void clock_init(void) {
     // Nothing we know about: make sure no stray wakeups ring.
     wakeup_cancel_all();
     if (migrated) prv_save();
+    prv_text_load();
     return;
   }
 
@@ -94,6 +164,7 @@ void clock_init(void) {
     s_items[s_count++] = loaded[i];
   }
   prv_sort();
+  prv_text_load();
   if (dropped || migrated) prv_save();
 }
 
@@ -110,6 +181,7 @@ StatusCode clock_add(time_t when, ClockKind kind, const char *label, int32_t dur
   if (label) {
     strncpy(item->label, label, CLOCK_LABEL_LEN - 1);
     item->label[CLOCK_LABEL_LEN - 1] = '\0';
+    if (strlen(label) >= CLOCK_LABEL_LEN) prv_text_put(id, label);
   }
   prv_sort();
   prv_save();
@@ -128,6 +200,7 @@ const ClockItem *clock_get(int index) {
 static void prv_remove_at(int index, bool cancel) {
   if (index < 0 || index >= s_count) return;
   if (cancel) wakeup_cancel(s_items[index].wakeup_id);
+  prv_text_drop(s_items[index].wakeup_id);
   for (int i = index; i < s_count - 1; i++) s_items[i] = s_items[i + 1];
   s_count--;
   memset(&s_items[s_count], 0, sizeof(ClockItem));
@@ -159,7 +232,7 @@ static bool prv_contains(const char *haystack, const char *needle) {
 int clock_remove_labelled(ClockKind kind, const char *label) {
   int removed = 0;
   for (int i = s_count - 1; i >= 0; i--) {
-    if (s_items[i].kind == kind && prv_contains(s_items[i].label, label)) {
+    if (s_items[i].kind == kind && prv_contains(clock_text(&s_items[i]), label)) {
       prv_remove_at(i, true);
       removed++;
     }
@@ -172,10 +245,11 @@ int clock_remove_kind(ClockKind kind) {
   return clock_remove_labelled(kind, NULL);
 }
 
-bool clock_take_wakeup(WakeupId id, ClockItem *out) {
+bool clock_take_wakeup(WakeupId id, ClockItem *out, char *text, size_t size) {
   for (int i = 0; i < s_count; i++) {
     if (s_items[i].wakeup_id == id) {
       if (out) *out = s_items[i];
+      if (text && size) snprintf(text, size, "%s", clock_text(&s_items[i]));
       prv_remove_at(i, false);  // it already fired
       prv_save();
       return true;
@@ -226,6 +300,9 @@ void clock_describe_result(StatusCode result, ClockKind kind, time_t when, char 
     if (kind == ClockKindTimer) {
       prv_format_duration((int)(when - time(NULL)), part, sizeof(part));
       snprintf(buf, size, "Timer set: %s", part);
+    } else if (kind == ClockKindReminder) {
+      clock_format_time(when, true, part, sizeof(part));
+      snprintf(buf, size, "Reminder set: %s", part);
     } else {
       clock_format_time(when, true, part, sizeof(part));
       struct tm when_tm = *localtime(&when);
@@ -244,7 +321,7 @@ void clock_describe_result(StatusCode result, ClockKind kind, time_t when, char 
       snprintf(buf, size, "That time has already passed");
       break;
     case E_OUT_OF_RESOURCES:
-      snprintf(buf, size, "Already 8 timers and alarms set");
+      snprintf(buf, size, "Already 8 timers, alarms and reminders set");
       break;
     default:
       snprintf(buf, size, "Couldn't set that (%d)", (int)result);

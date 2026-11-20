@@ -488,13 +488,29 @@ void home_handle_clock(int32_t request_id, int kind, int32_t value, const char *
       prv_finish(removed > 0, main, sub);
       return;
     }
+    case 6: {
+      // A reminder: value is when, label its words.
+      time_t when = (time_t)value;
+      StatusCode result = clock_add(when, ClockKindReminder, label, 0);
+      clock_describe_result(result, ClockKindReminder, when, main, sizeof(main));
+      prv_finish(result == S_SUCCESS, main, sub);
+      return;
+    }
+    case 7: {
+      int removed = clock_remove_labelled(ClockKindReminder, label);
+      if (removed == 0) snprintf(main, sizeof(main), "No reminder to cancel");
+      else snprintf(main, sizeof(main), "Cancelled %d reminder%s", removed, removed == 1 ? "" : "s");
+      prv_finish(removed > 0, main, sub);
+      return;
+    }
     case 5:
     default:
-      // value says which list: 1 timers, 2 alarms, 0 the menu with both.
+      // value says which list: 1 timers, 2 alarms, 3 reminders, 0 the menu with all three.
       s_quick = false;
-      prv_finish(true, value == 1 ? "Timers" : value == 2 ? "Alarms" : "Alarms and timers", "");
+      prv_finish(true, value == 1 ? "Timers" : value == 2 ? "Alarms" : value == 3 ? "Reminders" : "Alarms and timers", "");
       if (value == 1) clock_list_push(ClockKindTimer);
       else if (value == 2) clock_list_push(ClockKindAlarm);
+      else if (value == 3) clock_list_push(ClockKindReminder);
       else menu_window_push();
       return;
   }

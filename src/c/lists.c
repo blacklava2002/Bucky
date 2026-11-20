@@ -1,6 +1,7 @@
-// The Alarms list or the Timers list, styled like Bobby's.
+// The Alarms, Timers or Reminders list, styled like Bobby's.
 // A timer row counts down live with its name under it; an alarm row shows its time with
-// the day (and name) under it. Select opens a Delete action.
+// the day (and name) under it; a reminder row shows its words with the time and day under them.
+// Select opens a Delete action.
 #include "app.h"
 
 static Window *s_window;
@@ -10,7 +11,7 @@ static TextLayer *s_empty;
 static BitmapLayer *s_sprite;
 static AppTimer *s_refresh;
 static ClockKind s_kind;
-static char s_title[16];
+static char s_title[CLOCK_TEXT_LEN];
 static char s_subtitle[64];
 static char s_empty_text[48];
 
@@ -73,7 +74,14 @@ static void prv_draw_row(GContext *ctx, const Layer *cell, MenuIndex *index, voi
   int i = prv_index(index->row);
   if (i < 0) return;
   const ClockItem *item = clock_get(i);
-  if (item->kind == ClockKindTimer) {
+  if (item->kind == ClockKindReminder) {
+    snprintf(s_title, sizeof(s_title), "%s", clock_text(item)[0] ? clock_text(item) : "Reminder");
+    s_title[0] = toupper_ascii(s_title[0]);
+    char at[16], day[32];
+    clock_format_time(item->when, false, at, sizeof(at));
+    prv_day(item->when, day, sizeof(day));
+    snprintf(s_subtitle, sizeof(s_subtitle), "%s, %s", at, day);
+  } else if (item->kind == ClockKindTimer) {
     int left = item->when - time(NULL);
     if (left < 0) left = 0;
     snprintf(s_title, sizeof(s_title), "%d:%02d:%02d", left / 3600, (left / 60) % 60, left % 60);
@@ -185,7 +193,7 @@ static void prv_load(Window *window) {
   layer_add_child(root, bitmap_layer_get_layer(s_sprite));
 
   snprintf(s_empty_text, sizeof(s_empty_text), "No %s set. Ask " BRAND_NAME " to set one.",
-           s_kind == ClockKindTimer ? "timers" : "alarms");
+           s_kind == ClockKindTimer ? "timers" : s_kind == ClockKindReminder ? "reminders" : "alarms");
   int inset = PBL_IF_ROUND_ELSE(22, 8);
   int text_top = STATUS_BAR_LAYER_HEIGHT + PBL_IF_ROUND_ELSE(6, 0);
   s_empty = text_layer_create(GRect(inset, text_top, bounds.size.w - 2 * inset, sprite_top - text_top));

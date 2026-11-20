@@ -72,9 +72,11 @@ signed in to there, Bucky can use.
 **Notes and reminders**
 - "Take a note that the filter is 16x25", "note to self buy stamps".
 - "Remind me to call the plumber tomorrow at 9", "remind me in 20 minutes to check the oven".
+  Reminders ring on the watch with a timeline pin, no other app needed.
 - "Add eggs to my grocery list" puts it in the list of that name.
-- Pick where each goes in settings, from the plugins you've installed: Index, Apple Notes, Google
-  Tasks & Keep, Notion, Obsidian, Roam, Remember The Milk, TickTick, Todoist and more.
+- Pick where notes, lists and (if you like) reminders go in settings, from the plugins you've
+  installed: Index, Apple Notes, Google Tasks & Keep, Notion, Obsidian, Roam, Remember The Milk,
+  TickTick, Todoist and more.
 
 **Your phone**
 - "Find my phone" rings it, even on silent. "Stop ringing" or "I found it" stops it.
