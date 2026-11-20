@@ -1,12 +1,10 @@
 # Bucky
 
-A plugin-powered voice assistant for Pebble, and a spiritual successor to Bobby and Billy. Press Select and talk. Bucky sets timers
-and alarms on the watch, answers weather, battery and music questions, plays and skips songs,
-opens watch apps, texts your contacts through Beeper and other chat apps, saves notes and
-reminders to the app you pick, and hands everything
-else to the agent plugin you picked: Claude, Muse, Grok Bot or ChatGPT. No API keys, no server:
-it uses the Pebble app's plugin API (`Pebble.invokeAction`, `Pebble.subscribeToSource`), the same
-thing the Index ring uses. Each of these can be turned off in settings, and then those words go to
+A plugin-powered voice assistant for Pebble, inspired by Bobby and Billy. Press Select and talk. Bucky sets timers, alarms, and reminders on the watch with timeline pins, checks the weather, phone status (battery percentage, WiFi/Cellular), controls music,
+open watch apps, texts your contacts through Beeper and other chat plugins, saves notes and
+reminders to the plugin you pick, and hands everything
+else to the agent plugin you picked: Claude, Muse, Grok Bot or ChatGPT or any other agent plugin. No API keys, no server:
+it uses the Pebble app's plugin API (`Pebble.invokeAction`, `Pebble.subscribeToSource`), the same thing the Index ring uses. Each of these can be turned off in settings, and then those actions go to
 your agent instead.
 
 ## What Bucky does
