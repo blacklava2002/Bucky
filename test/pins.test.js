@@ -43,3 +43,15 @@ test('named alarms read as "<name> alarm"', () => {
   const pin = pins.pinFor({ kind: 2, when: 1763535600, duration: 0, label: 'airport' });
   assert.equal(pin.layout.title, 'Airport alarm');
 });
+
+test('reminder pin shows its words and opens the reminders list', () => {
+  assert.deepEqual(pins.parse('3\t1763535600\t0\tcall Mom about Sunday dinner\n'), [
+    { kind: 3, when: 1763535600, duration: 0, label: 'call Mom about Sunday dinner' },
+  ]);
+  const pin = pins.pinFor({ kind: 3, when: 1763535600, duration: 0, label: 'call Mom about Sunday dinner' });
+  assert.equal(pin.id, 'bucky-reminder-1763535600');
+  assert.equal(pin.layout.title, 'Call Mom about Sunday dinner');
+  assert.equal(pin.layout.subtitle, 'Reminder');
+  assert.equal(pin.layout.tinyIcon, 'system://images/NOTIFICATION_REMINDER');
+  assert.deepEqual(pin.actions, [{ title: 'Open Bucky', type: 'openWatchApp', launchCode: 4 }]);
+});

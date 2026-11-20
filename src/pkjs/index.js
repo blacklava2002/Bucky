@@ -1,4 +1,4 @@
-// Phone side. Takes the watch's transcript, sets timers and alarms on the
+// Phone side. Takes the watch's transcript, sets timers, alarms and reminders on the
 // watch when that's what was asked, and sends everything else to the agent plugin
 // chosen in settings through the Pebble app's plugin API (send_to_agent).
 
@@ -31,10 +31,10 @@ var KNOWN_AGENTS = [
 var STORE = { agent: 'agent', confirm: 'confirm', quickTalk: 'quickTalk', pins: 'pins', prompts: 'prompts', weather: 'weather',
   features: 'features', aliases: 'aliases', messenger: 'messenger', checkMessages: 'checkMessages',
   vibeAlarm: 'vibeAlarm', vibeTimer: 'vibeTimer', clockOn: 'clockOn',
-  notePlugin: 'notePlugin', reminderPlugin: 'reminderPlugin', knownContacts: 'knownContacts',
+  notePlugin: 'notePlugin', reminderPlugin: 'reminderPlugin', listPlugin: 'listPlugin', knownContacts: 'knownContacts',
   chatNames: 'chatNames', quietListen: 'quietListen' };
 // What the app does itself. Turn one off in settings and those words go to the agent instead.
-var FEATURES = ['weather', 'battery', 'findPhone', 'music', 'apps', 'messages', 'notes', 'reminders'];
+var FEATURES = ['weather', 'battery', 'findPhone', 'music', 'apps', 'messages', 'notes', 'reminders', 'lists'];
 // Ringing patterns, same numbers as ring.c: 0 strong, 1 gentle, 2 a few nudges, 3 silent.
 var VIBES = [0, 1, 2, 3];
 // The Up button's example prompts. Editable in settings; the watch has the same defaults.
@@ -52,8 +52,11 @@ var DEFAULT_PROMPTS = [
 ];
 var PROMPTS_MAX = 10;
 var PROMPT_MAX_LEN = 60;
-var CLOCK = { timer: 1, alarm: 2, cancel_timer: 3, cancel_alarm: 4, list: 5 };
-var LIST_WHICH = { timer: 1, alarm: 2 };  // which list the watch opens; 0 is the menu
+var CLOCK = { timer: 1, alarm: 2, cancel_timer: 3, cancel_alarm: 4, list: 5, reminder: 6, cancel_reminder: 7 };
+var LIST_WHICH = { timer: 1, alarm: 2, reminder: 3 };  // which list the watch opens; 0 is the menu
+// The reminder setting's value for the app's own reminders, which ring on the watch.
+var ON_WATCH = 'watch';
+var WATCH_REMINDER_LEN = 63;
 
 // ------------------------------------------------------------------ settings
 
@@ -319,8 +322,31 @@ function noteDest() {
   return destinations.choose(destinations.notePlugins(Pebble.enumeratePlugins ? safePlugins() : []), load(STORE.notePlugin, ''));
 }
 
+// Reminders ring on the watch unless a reminder plugin is picked in settings.
 function reminderDest() {
-  return destinations.choose(destinations.reminderPlugins(Pebble.enumeratePlugins ? safePlugins() : []), load(STORE.reminderPlugin, ''));
+  var saved = load(STORE.reminderPlugin, '');
+  if (!saved || saved === ON_WATCH) return null;
+  var found = destinations.reminderPlugins(Pebble.enumeratePlugins ? safePlugins() : []);
+  for (var i = 0; i < found.length; i++) if (found[i].uuid === saved) return found[i];
+  return null;
+}
+
+// Lists live in a plugin: the one picked for lists, or else the reminder plugin, or else the first.
+function listDest() {
+  var found = destinations.reminderPlugins(Pebble.enumeratePlugins ? safePlugins() : []);
+  var saved = load(STORE.listPlugin, '') || load(STORE.reminderPlugin, '');
+  return destinations.choose(found, saved);
+}
+
+// A reminder that rings on the watch, with a pin on the timeline.
+function watchReminder(r, requestId) {
+  var now = new Date();
+  var at = r.when ? destinations.due(r.when, now) : null;
+  if (!at) {
+    result(requestId, 0, 'When is that?', (r.when ? 'I couldn\'t tell when "' + r.when + '" is. ' : '') + 'Try "tomorrow at 9" or "in 2 hours".');
+    return;
+  }
+  send({ REQ_ID: requestId, CLOCK_KIND: CLOCK.reminder, CLOCK_TIME: Math.round(at.getTime() / 1000), CLOCK_LABEL: clip(r.message, WATCH_REMINDER_LEN) });
 }
 
 function indexAsk(text, requestId) {
@@ -331,10 +357,13 @@ function indexAsk(text, requestId) {
       working: 'Saving to ' + nd.name + '...', done: 'Note saved to ' + nd.name, detail: '"' + clip(n.text, 120) + '"' }, requestId);
     return true;
   }
-  var rd = enabled('reminders') ? reminderDest() : null;
-  if (!rd) return false;
-  var r = indexkit.reminder(text);
+  var r = enabled('reminders') ? indexkit.reminder(text) : null;
   if (r) {
+    var rd = reminderDest();
+    if (!rd) {
+      watchReminder(r, requestId);
+      return true;
+    }
     var built = destinations.reminderArgs(rd, r, new Date());
     if (built.error) {
       result(requestId, 0, 'When is that?', built.error + ' Try "tomorrow at 9" or "in 2 hours".');
@@ -346,20 +375,21 @@ function indexAsk(text, requestId) {
       detail: '"' + clip(r.message, 100) + '"' + (when ? ', ' + when : '') }, requestId);
     return true;
   }
-  var li = indexkit.listItem(text);
+  var ld = enabled('lists') ? listDest() : null;
+  var li = ld ? indexkit.listItem(text) : null;
   if (!li) return false;
-  if (rd.lists) {
-    runAction({ name: rd.name, plugin: rd.uuid, action: 'create_list_item', args: li.args,
+  if (ld.lists) {
+    runAction({ name: ld.name, plugin: ld.uuid, action: 'create_list_item', args: li.args,
       working: 'Adding it...', done: 'Added to ' + li.list, detail: '"' + clip(li.item, 120) + '"' }, requestId);
     return true;
   }
   // Store plugins keep lists as their reminders/list source; the item goes in as a reminder there.
   result(requestId, 2, 'Adding it...', '');
-  destinations.findList(rd, li.list, function (instanceId, listName) {
+  destinations.findList(ld, li.list, function (instanceId, listName) {
     var args = { title: li.item };
     if (instanceId) args.instanceId = instanceId;
-    runAction({ name: rd.name, plugin: rd.uuid, action: 'create_reminder', args: args, working: 'Adding it...',
-      done: instanceId ? 'Added to ' + listName : 'Added to ' + rd.name,
+    runAction({ name: ld.name, plugin: ld.uuid, action: 'create_reminder', args: args, working: 'Adding it...',
+      done: instanceId ? 'Added to ' + listName : 'Added to ' + ld.name,
       detail: '"' + clip(li.item, 100) + '"' + (instanceId ? '' : ' (no list called ' + li.list + ', so it\'s in your default list)') }, requestId);
   });
   return true;
@@ -396,11 +426,17 @@ function handleRest(text, requestId, agents) {
       // Phone alarms only take a time of day, so anything more than a day out stays on the watch.
       send({ REQ_ID: requestId, CLOCK_KIND: CLOCK.alarm, CLOCK_TIME: parsed.time, CLOCK_LABEL: parsed.label || '' });
       return;
+    case 'cancel_reminder':
+      // Only the watch's own reminders; a reminder plugin's are the agent's to handle.
+      if (!enabled('reminders') || reminderDest()) break;
+      send({ REQ_ID: requestId, CLOCK_KIND: CLOCK.cancel_reminder, CLOCK_TIME: 0, CLOCK_LABEL: parsed.label || '' });
+      return;
     case 'cancel_timer':
     case 'cancel_alarm':
       send({ REQ_ID: requestId, CLOCK_KIND: CLOCK[parsed.kind], CLOCK_TIME: 0, CLOCK_LABEL: parsed.label || '' });
       return;
     case 'list':
+      if (parsed.which === 'reminder' && (!enabled('reminders') || reminderDest())) break;
       send({ REQ_ID: requestId, CLOCK_KIND: CLOCK.list, CLOCK_TIME: LIST_WHICH[parsed.which] || 0, CLOCK_LABEL: '' });
       return;
     case 'unclear':
@@ -695,8 +731,10 @@ function pageState() {
     index: { clock: !!indexkit.find(Pebble.enumeratePlugins ? safePlugins() : [], indexkit.CLOCK, 'set_timer') },
     notePlugins: destinations.notePlugins(Pebble.enumeratePlugins ? safePlugins() : []).map(function (d) { return { uuid: d.uuid, name: d.name }; }),
     notePlugin: (noteDest() || {}).uuid || '',
-    reminderPlugins: destinations.reminderPlugins(Pebble.enumeratePlugins ? safePlugins() : []).map(function (d) { return { uuid: d.uuid, name: d.name }; }),
-    reminderPlugin: (reminderDest() || {}).uuid || '',
+    reminderPlugins: [{ uuid: ON_WATCH, name: 'On the watch' }].concat(destinations.reminderPlugins(Pebble.enumeratePlugins ? safePlugins() : []).map(function (d) { return { uuid: d.uuid, name: d.name }; })),
+    reminderPlugin: (reminderDest() || {}).uuid || ON_WATCH,
+    listPlugins: destinations.reminderPlugins(Pebble.enumeratePlugins ? safePlugins() : []).map(function (d) { return { uuid: d.uuid, name: d.name }; }),
+    listPlugin: (listDest() || {}).uuid || '',
     pluginsSupported: !!(Pebble.enumeratePlugins && Pebble.invokeAction)
   };
 }
@@ -743,6 +781,7 @@ Pebble.addEventListener('configmessage', function (e) {
     if (message.vibeAlarm !== undefined) save(STORE.vibeAlarm, VIBES.indexOf(message.vibeAlarm | 0) >= 0 ? message.vibeAlarm | 0 : 0);
     if (message.notePlugin !== undefined) save(STORE.notePlugin, String(message.notePlugin || ''));
     if (message.reminderPlugin !== undefined) save(STORE.reminderPlugin, String(message.reminderPlugin || ''));
+    if (message.listPlugin !== undefined) save(STORE.listPlugin, String(message.listPlugin || ''));
     if (message.clockOn !== undefined) save(STORE.clockOn, message.clockOn === 'phone' ? 'phone' : 'watch');
     if (message.vibeTimer !== undefined) save(STORE.vibeTimer, VIBES.indexOf(message.vibeTimer | 0) >= 0 ? message.vibeTimer | 0 : 0);
     pushSettings();
@@ -756,7 +795,7 @@ Pebble.addEventListener('configmessage', function (e) {
 
 // ------------------------------------------------------------------ timeline
 
-// The watch sends its whole timer and alarm list after every change.
+// The watch sends its whole timer, alarm and reminder list after every change.
 function syncPins(text) {
   if (typeof Pebble.insertTimelinePin !== 'function') {
     log('this Pebble app has no local timeline; no pins');

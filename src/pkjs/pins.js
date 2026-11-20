@@ -1,4 +1,4 @@
-// Timeline pins for the watch's timers and alarms.
+// Timeline pins for the watch's timers, alarms and reminders.
 // The watch sends its whole list as text after every change; this turns it into
 // pins and works out which old pins to take down. Pins go in through the Pebble
 // app's local timeline (Pebble.insertTimelinePin), so no token or server is needed.
@@ -8,13 +8,17 @@ var brand = require('./brand');
 // The reminder icon made timers read as reminders; there is no timer icon, so both
 // use the alarm clock.
 var ICON = {
-  1: 'system://images/ALARM_CLOCK',  // timer
-  2: 'system://images/ALARM_CLOCK'   // alarm
+  1: 'system://images/ALARM_CLOCK',          // timer
+  2: 'system://images/ALARM_CLOCK',          // alarm
+  3: 'system://images/NOTIFICATION_REMINDER' // reminder
 };
-// Launch codes: open the app on the menu (1, older pins), the timers list or the alarms list.
+var NOUN = { 1: 'timer', 2: 'alarm', 3: 'reminder' };
+// Launch codes: open the app on the menu (1, older pins), or the timers, alarms or reminders list.
 var OPEN_LIST = 1;
 var OPEN_TIMERS = 2;
 var OPEN_ALARMS = 3;
+var OPEN_REMINDERS = 4;
+var OPEN = { 1: OPEN_TIMERS, 2: OPEN_ALARMS, 3: OPEN_REMINDERS };
 
 function duration(seconds) {
   var h = Math.floor(seconds / 3600);
@@ -35,14 +39,14 @@ function parse(text) {
     var f = line.split('\t');
     var kind = parseInt(f[0], 10);
     var when = parseInt(f[1], 10);
-    if ((kind !== 1 && kind !== 2) || !(when > 0)) return;
+    if (!NOUN[kind] || !(when > 0)) return;
     items.push({ kind: kind, when: when, duration: parseInt(f[2], 10) || 0, label: f.slice(3).join(' ').trim() });
   });
   return items;
 }
 
 function pinId(item) {
-  return brand.id + '-' + (item.kind === 1 ? 'timer' : 'alarm') + '-' + item.when;
+  return brand.id + '-' + NOUN[item.kind] + '-' + item.when;
 }
 
 function capital(text) {
@@ -50,6 +54,15 @@ function capital(text) {
 }
 
 function pinFor(item) {
+  if (item.kind === 3) {
+    // A reminder's words are the title: "Call Mom".
+    return {
+      id: pinId(item),
+      time: new Date(item.when * 1000).toISOString(),
+      layout: { type: 'genericPin', title: item.label ? capital(item.label) : 'Reminder', subtitle: 'Reminder', tinyIcon: ICON[3] },
+      actions: [{ title: 'Open ' + brand.name, type: 'openWatchApp', launchCode: OPEN_REMINDERS }]
+    };
+  }
   var timer = item.kind === 1;
   var noun = timer ? 'timer' : 'alarm';
   // "Tea timer", "Airport alarm".
@@ -68,7 +81,7 @@ function pinFor(item) {
       subtitle: subtitle,
       tinyIcon: ICON[item.kind]
     },
-    actions: [{ title: 'Open ' + brand.name, type: 'openWatchApp', launchCode: timer ? OPEN_TIMERS : OPEN_ALARMS }]
+    actions: [{ title: 'Open ' + brand.name, type: 'openWatchApp', launchCode: OPEN[item.kind] }]
   };
 }
 
@@ -81,4 +94,4 @@ function plan(text, previous) {
   return { pins: pins, remove: remove, ids: Object.keys(keep) };
 }
 
-module.exports = { parse: parse, pinFor: pinFor, plan: plan, duration: duration, OPEN_LIST: OPEN_LIST, OPEN_TIMERS: OPEN_TIMERS, OPEN_ALARMS: OPEN_ALARMS };
+module.exports = { parse: parse, pinFor: pinFor, plan: plan, duration: duration, OPEN_LIST: OPEN_LIST, OPEN_TIMERS: OPEN_TIMERS, OPEN_ALARMS: OPEN_ALARMS, OPEN_REMINDERS: OPEN_REMINDERS };

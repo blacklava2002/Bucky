@@ -1,5 +1,5 @@
 // A Pebble voice agent (the name and look are in brand.h and resources/images).
-// Talk, and it either sets a timer or alarm on the watch or hands your words
+// Talk, and it either sets a timer, alarm or reminder on the watch or hands your words
 // to the agent plugin picked in settings (Claude, Muse, Grok, ChatGPT).
 #include "app.h"
 
@@ -80,10 +80,11 @@ bool comm_confirm_send(int32_t request_id) {
 // change. The outbox may be busy, or the phone away, so it retries for a while.
 #define SYNC_RETRY_MS 750
 #define SYNC_MAX_TRIES 20
-// Timeline pins open the app on a list: 1 the menu (older pins), 2 timers, 3 alarms.
+// Timeline pins open the app on a list: 1 the menu (older pins), 2 timers, 3 alarms, 4 reminders.
 #define OPEN_MENU_LAUNCH_CODE 1
 #define OPEN_TIMERS_LAUNCH_CODE 2
 #define OPEN_ALARMS_LAUNCH_CODE 3
+#define OPEN_REMINDERS_LAUNCH_CODE 4
 
 static AppTimer *s_sync_timer;
 static bool s_sync_pending;
@@ -93,13 +94,13 @@ static bool s_comm_open;
 static void prv_sync(void *ctx) {
   s_sync_timer = NULL;
   if (!s_sync_pending) return;
-  char text[CLOCK_MAX_ITEMS * 48 + 1];
+  char text[CLOCK_MAX_ITEMS * (CLOCK_TEXT_LEN + 32) + 1];
   size_t used = 0;
   text[0] = '\0';
   for (int i = 0; i < clock_count() && used < sizeof(text); i++) {
     const ClockItem *item = clock_get(i);
     int n = snprintf(text + used, sizeof(text) - used, "%d\t%ld\t%ld\t%s\n",
-                     (int)item->kind, (long)item->when, (long)item->duration, item->label);
+                     (int)item->kind, (long)item->when, (long)item->duration, clock_text(item));
     if (n < 0) break;
     used += (size_t)n;
   }
@@ -128,14 +129,15 @@ static void prv_glance(AppGlanceReloadSession *session, size_t limit, void *ctx)
   for (int i = 0; i < clock_count() && added < limit; i++) {
     const ClockItem *item = clock_get(i);
     if ((time_t)item->when <= now) continue;
-    char subtitle[96];
+    char subtitle[112];
     if (item->kind == ClockKindTimer) {
       snprintf(subtitle, sizeof(subtitle), "%s {time_until(%ld)|format('%%T')}",
                item->label[0] ? item->label : "Timer", (long)item->when);
     } else {
       char at[24];
       clock_format_time(item->when, true, at, sizeof(at));
-      snprintf(subtitle, sizeof(subtitle), "%s %s", item->label[0] ? item->label : "Alarm", at);
+      const char *name = item->kind == ClockKindReminder ? clock_text(item) : item->label;
+      snprintf(subtitle, sizeof(subtitle), "%s %s", name[0] ? name : item->kind == ClockKindReminder ? "Reminder" : "Alarm", at);
     }
     // Template strings treat these as special; labels come from speech, so drop them.
     for (char *c = subtitle; *c && !(c[0] == ' ' && c[1] == '{'); c++) {
@@ -237,7 +239,8 @@ static void prv_inbox(DictionaryIterator *iter, void *ctx) {
 
 static void prv_wakeup(WakeupId id, int32_t cookie) {
   ClockItem item;
-  if (clock_take_wakeup(id, &item)) ring_window_push(&item);
+  char text[CLOCK_TEXT_LEN];
+  if (clock_take_wakeup(id, &item, text, sizeof(text))) ring_window_push(&item, text);
 }
 
 static void prv_init(void) {
@@ -256,8 +259,9 @@ static void prv_init(void) {
     WakeupId id;
     int32_t cookie;
     ClockItem item;
-    if (wakeup_get_launch_event(&id, &cookie) && clock_take_wakeup(id, &item)) {
-      ring_window_push(&item);
+    char text[CLOCK_TEXT_LEN];
+    if (wakeup_get_launch_event(&id, &cookie) && clock_take_wakeup(id, &item, text, sizeof(text))) {
+      ring_window_push(&item, text);
       return;
     }
   }
@@ -267,6 +271,7 @@ static void prv_init(void) {
     if (code == OPEN_MENU_LAUNCH_CODE) menu_window_push();
     else if (code == OPEN_TIMERS_LAUNCH_CODE) clock_list_push(ClockKindTimer);
     else if (code == OPEN_ALARMS_LAUNCH_CODE) clock_list_push(ClockKindAlarm);
+    else if (code == OPEN_REMINDERS_LAUNCH_CODE) clock_list_push(ClockKindReminder);
   }
   prv_send_ready();
 }

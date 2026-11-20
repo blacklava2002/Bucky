@@ -361,6 +361,7 @@ test('Beeper (Index) refusing a contact it has not approved says so', async () =
 test('notes, reminders and list items go to the Index plugins', async () => {
   const calls = [];
   const h = host(PLUGINS.concat(INDEX_PLUGINS), (a) => { calls.push(a); return Promise.resolve({ ok: true }); });
+  h.listeners.configmessage({ data: { type: 'set', reminderPlugin: '00000000-0000-0000-0002-000000000004' }, respond: () => {} });
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'take a note the garage code changed', REQ_ID: 42 } });
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'remind me to call Mom tomorrow at 9', REQ_ID: 43 } });
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'add eggs to my shopping list', REQ_ID: 44 } });
@@ -419,8 +420,10 @@ test('settings list the installed note and reminder plugins, Index first, and us
   let state;
   h.listeners.configmessage({ data: { type: 'state' }, respond: (s) => { state = s; } });
   assert.deepEqual(state.notePlugins.map((p) => p.name), ['Notes (Index)', 'Apple Notes']);
-  assert.deepEqual(state.reminderPlugins.map((p) => p.name), ['Reminders (Index)', 'Todoist']);
-  assert.equal(state.reminderPlugin, '00000000-0000-0000-0002-000000000004');
+  assert.deepEqual(state.reminderPlugins.map((p) => p.name), ['On the watch', 'Reminders (Index)', 'Todoist']);
+  assert.equal(state.reminderPlugin, 'watch');
+  assert.deepEqual(state.listPlugins.map((p) => p.name), ['Reminders (Index)', 'Todoist']);
+  assert.equal(state.listPlugin, '00000000-0000-0000-0002-000000000004');
   h.listeners.configmessage({ data: { type: 'set', notePlugin: APPLE_NOTES.uuid, reminderPlugin: TODOIST.uuid }, respond: () => {} });
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'note to self buy filters', REQ_ID: 60 } });
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'remind me to call Mom in 2 hours', REQ_ID: 61 } });
@@ -600,4 +603,61 @@ test('a timeout is never retried', async () => {
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'check the build', REQ_ID: 6 } });
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(calls, 1);
+});
+
+
+test('reminders ring on the watch unless a plugin is picked', async () => {
+  const calls = [];
+  const h = host(PLUGINS.concat(INDEX_PLUGINS), (a) => { calls.push(a); return Promise.resolve({ ok: true }); });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'remind me to call Mom in 2 hours', REQ_ID: 70 } });
+  await tick();
+  assert.equal(calls.length, 0);
+  const msg = h.sent.pop();
+  assert.equal(msg.CLOCK_KIND, 6);
+  assert.equal(msg.CLOCK_LABEL, 'Call Mom');
+  assert.ok(Math.abs(msg.CLOCK_TIME * 1000 - (Date.now() + 2 * 3600 * 1000)) < 61000);
+});
+
+test('a watch reminder with no time asks when', async () => {
+  const h = host(PLUGINS, () => Promise.resolve({ ok: true }));
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'remind me to call Mom', REQ_ID: 71 } });
+  await tick();
+  const msg = h.sent.pop();
+  assert.equal(msg.RESULT_OK, 0);
+  assert.equal(msg.RESULT_TEXT, 'When is that?');
+});
+
+test('listing and cancelling reminders work on the watch, and go to the agent with a plugin picked', async () => {
+  const calls = [];
+  const h = host(PLUGINS.concat(INDEX_PLUGINS), (a) => { calls.push(a); return Promise.resolve({ ok: true }); });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'what reminders do I have', REQ_ID: 72 } });
+  await tick();
+  assert.deepEqual(h.sent.pop(), { REQ_ID: 72, CLOCK_KIND: 5, CLOCK_TIME: 3, CLOCK_LABEL: '' });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'cancel the dentist reminder', REQ_ID: 73 } });
+  await tick();
+  assert.deepEqual(h.sent.pop(), { REQ_ID: 73, CLOCK_KIND: 7, CLOCK_TIME: 0, CLOCK_LABEL: 'Dentist' });
+  h.listeners.configmessage({ data: { type: 'set', reminderPlugin: '00000000-0000-0000-0002-000000000004' }, respond: () => {} });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'what reminders do I have', REQ_ID: 74 } });
+  await tick();
+  assert.equal(calls[0].action, 'send_to_agent');
+});
+
+test('lists can go to a different plugin than reminders', async () => {
+  const calls = [];
+  const h = host(PLUGINS.concat([TODOIST], INDEX_PLUGINS), (a) => { calls.push(a); return Promise.resolve({ ok: true }); });
+  h.listeners.configmessage({ data: { type: 'set', reminderPlugin: TODOIST.uuid, listPlugin: '00000000-0000-0000-0002-000000000004' }, respond: () => {} });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'add eggs to my shopping list', REQ_ID: 75 } });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'remind me to call Mom in 2 hours', REQ_ID: 76 } });
+  await tick();
+  assert.deepEqual(calls[0], { plugin: '00000000-0000-0000-0002-000000000004', action: 'create_list_item', args: { list_name: 'shopping', message: 'Eggs' } });
+  assert.equal(calls[1].plugin, TODOIST.uuid);
+});
+
+test('lists turned off go to the agent, reminders still ring on the watch', async () => {
+  const calls = [];
+  const h = host(PLUGINS.concat(INDEX_PLUGINS), (a) => { calls.push(a); return Promise.resolve({ ok: true }); });
+  h.listeners.configmessage({ data: { type: 'set', features: { lists: false } }, respond: () => {} });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'add eggs to my shopping list', REQ_ID: 77 } });
+  await tick();
+  assert.equal(calls[0].action, 'send_to_agent');
 });

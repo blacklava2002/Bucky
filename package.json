@@ -172,6 +172,11 @@
           "type": "bitmap",
           "name": "MENU_TIMERS",
           "file": "images/menu_timers.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "MENU_REMINDERS",
+          "file": "images/menu_reminders.png"
         }
       ]
     },

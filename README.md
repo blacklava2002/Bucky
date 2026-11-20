@@ -80,12 +80,17 @@ your agent instead.
 - **Notes:** "take a note that the filter is size 16x25", "note to self buy stamps", "jot down
   ...". Saved by the notes plugin picked in settings: Notes (Index), Apple Notes, Google Tasks &
   Keep, Notion, Obsidian, Roam, or any plugin with a `create_note` action.
-- **Reminders and lists:** "remind me to call the plumber tomorrow at 9", "remind me in 20 minutes
-  to check the oven", "add eggs to my grocery list". Saved by the reminders plugin picked in
-  settings: Reminders (Index), Google Tasks, Obsidian, Remember The Milk, TickTick, Todoist,
-  Tasks.org, or any plugin with `create_reminder`. Bucky works out the date and time for the
-  store plugins, and puts list items in the list of that name, or the default list if there's
-  none. A time it can't read gets "When is that?" rather than a guess.
+- **Reminders:** "remind me to call the plumber tomorrow at 9", "remind me in 20 minutes to
+  check the oven". On the watch by default: they ring like alarms (Up snoozes 5 minutes), get a
+  timeline pin, and show under Reminders in the Down menu. "What reminders do I have?" and
+  "cancel the dentist reminder" work too. They share the watch's 8 slots with timers and alarms.
+  Or pick a reminders plugin in settings: Reminders (Index), Google Tasks, Obsidian, Remember The
+  Milk, TickTick, Todoist, Tasks.org, or any plugin with `create_reminder`. Bucky works out the
+  date and time for the store plugins. A time it can't read gets "When is that?" rather than a
+  guess.
+- **Lists:** "add eggs to my grocery list". Saved by the lists plugin picked in settings, which can
+  be a different one from reminders. Store plugins get the item in the list of that name, or the
+  default list if there's none.
 - **Where alarms and timers ring:** on the watch (the default), or on the phone through Timers &
   Alarms (Index). The phone's alarm takes a time of day only, so alarms more than a day out stay
   on the watch either way, and Bucky can't list or cancel phone timers.
@@ -178,7 +183,7 @@ Platforms: basalt, chalk, diorite, emery, flint, gabbro (every Pebble with a mic
 | `src/c/main.c` | Launch, settings, phone link, wakeups |
 | `src/c/home.c` | Home screen and the talk flow |
 | `src/c/clock.c` | Timers and alarms (watch wakeups, saved across restarts) |
-| `src/c/menu.c`, `src/c/lists.c` | The Down menu, and the Bobby-style Alarms and Timers lists |
+| `src/c/menu.c`, `src/c/lists.c` | The Down menu, and the Bobby-style Alarms, Timers and Reminders lists |
 | `src/c/prompts.c` | The example prompts on Up |
 | `src/c/reply.c` | The reply screen: Bucky, a headline and a scrolling answer |
 | `src/c/ring.c` | The ringing screen |
@@ -190,7 +195,7 @@ Platforms: basalt, chalk, diorite, emery, flint, gabbro (every Pebble with a mic
 | `src/pkjs/apps.js` | "Launch X": the watch's app list and launch_app (Watch State plugin) |
 | `src/pkjs/messages.js` | "Text X ...": parsing, aliases, the messaging plugin's send action and errors |
 | `src/pkjs/indexkit.js` | The Index app's plugins: notes, reminders, lists, phone timers and alarms |
-| `src/pkjs/destinations.js` | Which plugin takes notes and reminders, and the store plugins' arguments |
+| `src/pkjs/destinations.js` | Which plugin takes notes, reminders and lists, and the store plugins' arguments |
 | `src/pkjs/prefs.js` | Units and 12/24-hour clock from the Preferences plugin |
 | `src/pkjs/sources.js` | One reading of another plugin's source |
 | `src/pkjs/intent.js` | Transcript → timer, alarm, cancel, list, or agent |

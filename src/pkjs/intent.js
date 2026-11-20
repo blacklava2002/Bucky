@@ -4,8 +4,8 @@
 // parse(text, now) returns one of:
 //   { kind: 'timer', seconds, label }
 //   { kind: 'alarm', time (epoch seconds), label }
-//   { kind: 'cancel_timer', label } / { kind: 'cancel_alarm', label }
-//   { kind: 'list', which: 'timer' | 'alarm' | '' }
+//   { kind: 'cancel_timer', label } / { kind: 'cancel_alarm', label } / { kind: 'cancel_reminder', label }
+//   { kind: 'list', which: 'timer' | 'alarm' | 'reminder' | '' }
 //   { kind: 'agent' }                          everything else
 //   { kind: 'unclear', reason }                 a timer/alarm ask with no usable time
 
@@ -329,6 +329,7 @@ function ordinalSuffix(n) {
 
 var TIMER_WORDS = /\b(timer|timers|countdown|count down)\b/;
 var ALARM_WORDS = /\b(alarm|alarms|wake me( up)?)\b/;
+var REMINDER_WORDS = /\breminders?\b/;
 var CANCEL_WORDS = /\b(cancel|stop|delete|remove|clear|turn off|get rid of|kill|dismiss)\b/;
 var LIST_WORDS = /\b(what|which|list|show|any|how much time|how long)\b/;
 // Words that mean the ask is for the agent, not the watch: "tell Claude I set an alarm".
@@ -340,6 +341,18 @@ function parse(text, now) {
   if (!t) return { kind: 'agent' };
   var isTimer = TIMER_WORDS.test(t);
   var isAlarm = ALARM_WORDS.test(t);
+  // "What reminders do I have", "cancel the dentist reminder": the watch's own reminders.
+  // Setting one ("remind me ...") is read before this, where the reminder settings are known.
+  if (!isTimer && !isAlarm && REMINDER_WORDS.test(t) && !DELEGATE_START.test(t)) {
+    if (CANCEL_WORDS.test(t)) {
+      var rlabel = '';
+      var rm = /(?:the|my)\s+([a-z ]{2,30}?)\s+reminder/.exec(t) || /reminders?\s+(?:to|about|for)\s+([a-z ]{2,40})$/.exec(t);
+      if (rm && !/^(all|every|current|last|next|only)$/.test(rm[1].trim())) rlabel = tidyLabel(rm[1]);
+      return { kind: 'cancel_reminder', label: rlabel };
+    }
+    if (LIST_WORDS.test(t) && !/\b(set|start|create|make|add)\b/.test(t)) return { kind: 'list', which: 'reminder' };
+    return { kind: 'agent' };
+  }
   // "remind me in 10 minutes to ..." goes to the agent; only plain timer/alarm asks stay local.
   if (!isTimer && !isAlarm) return { kind: 'agent' };
   if (DELEGATE_START.test(t)) return { kind: 'agent' };

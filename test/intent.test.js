@@ -185,3 +185,14 @@ test('the wake word is dropped from the start', () => {
   assert.deepEqual(parse('hey bucky set a timer for 5 minutes', NOW), { kind: 'timer', seconds: 300, label: '' });
   assert.deepEqual(parse('Bucky, pasta timer for 12 minutes', NOW), parse('pasta timer for 12 minutes', NOW));
 });
+
+test('reminder lists and cancels; setting one is not parsed here', () => {
+  const { parse } = require('../src/pkjs/intent.js');
+  assert.deepEqual(parse('what reminders do I have'), { kind: 'list', which: 'reminder' });
+  assert.deepEqual(parse('show my reminders'), { kind: 'list', which: 'reminder' });
+  assert.deepEqual(parse('cancel the dentist reminder'), { kind: 'cancel_reminder', label: 'Dentist' });
+  assert.deepEqual(parse('delete my reminder to call mom'), { kind: 'cancel_reminder', label: 'Call mom' });
+  assert.deepEqual(parse('clear all reminders'), { kind: 'cancel_reminder', label: '' });
+  assert.equal(parse('remind me to call mom tomorrow').kind, 'agent');
+  assert.equal(parse('set a reminder for 5pm').kind, 'agent');
+});

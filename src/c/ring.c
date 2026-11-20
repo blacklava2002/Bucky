@@ -1,6 +1,6 @@
-// A timer or alarm going off.
+// A timer, alarm or reminder going off.
 //   Timer: Up repeats it, Select silences it and keeps counting up, Down dismisses.
-//   Alarm: Up snoozes, Select silences it and keeps counting up, Down dismisses.
+//   Alarm or reminder: Up snoozes, Select silences it and keeps counting up, Down dismisses.
 // Back dismisses too. The screen stays up, counting, until it is dismissed.
 #include "app.h"
 
@@ -17,7 +17,8 @@ static AppTimer *s_pulse;
 static int s_pulses;
 static bool s_silenced;
 static ClockItem s_item;
-static char s_title_text[32];
+static char s_title_text[CLOCK_TEXT_LEN + 8];
+static char s_text[CLOCK_TEXT_LEN];
 static char s_count_text[16];
 static GBitmap *s_icon_up;
 static GBitmap *s_icon_select;
@@ -85,7 +86,7 @@ static void prv_silence(ClickRecognizerRef rec, void *ctx) {
   if (s_sprite) bitmap_layer_set_bitmap(s_sprite, sprite_frame(SpriteIdle));
 }
 
-// Alarm: ring again in five minutes. Timer: start the same timer over.
+// Alarm or reminder: ring again in five minutes. Timer: start the same timer over.
 static void prv_again(ClickRecognizerRef rec, void *ctx) {
   bool timer = s_item.kind == ClockKindTimer;
   int32_t length = timer ? s_item.duration : SNOOZE_MIN * 60;
@@ -95,7 +96,7 @@ static void prv_again(ClickRecognizerRef rec, void *ctx) {
     return;
   }
   prv_stop();
-  StatusCode result = clock_add(time(NULL) + length, (ClockKind)s_item.kind, s_item.label, s_item.duration);
+  StatusCode result = clock_add(time(NULL) + length, (ClockKind)s_item.kind, s_text, s_item.duration);
   if (result == S_SUCCESS) {
     vibes_short_pulse();
     s_silenced = true;
@@ -157,8 +158,10 @@ static void prv_load(Window *window) {
   layer_add_child(root, bitmap_layer_get_layer(s_sprite));
 
   int y = top + size.h;
-  s_title = prv_text(root, GRect(left + 2, y - 2, width - 4, 22), FONT_KEY_GOTHIC_18_BOLD, s_title_text);
-  s_count = prv_text(root, GRect(left + 2, y + 16, width - 4, 30), FONT_KEY_GOTHIC_24_BOLD, s_count_text);
+  // A reminder's words get two lines.
+  int title_h = s_item.kind == ClockKindReminder ? 40 : 22;
+  s_title = prv_text(root, GRect(left + 2, y - 2, width - 4, title_h), FONT_KEY_GOTHIC_18_BOLD, s_title_text);
+  s_count = prv_text(root, GRect(left + 2, y + title_h - 6, width - 4, 30), FONT_KEY_GOTHIC_24_BOLD, s_count_text);
 
   prv_update_count();
   tick_timer_service_subscribe(SECOND_UNIT, prv_tick);
@@ -185,15 +188,9 @@ static void prv_unload(Window *window) {
   s_window = NULL;
 }
 
-void ring_window_push(const ClockItem *item) {
-  if (s_window) {
-    // Already ringing for something else: show the newest.
-    prv_stop();
-    window_stack_remove(s_window, false);
-  }
-  s_item = *item;
+// "Tea timer", "Airport alarm"; the label is said as a name, so add the noun.
+static void prv_title_for(const ClockItem *item) {
   bool timer = item->kind == ClockKindTimer;
-  // "Tea timer", "Airport alarm"; the label is said as a name, so add the noun.
   const char *noun = timer ? "timer" : "alarm";
   size_t len = strlen(item->label);
   bool has_noun = len >= 5 && strncmp(item->label + len - 5, noun, 5) == 0;
@@ -201,6 +198,23 @@ void ring_window_push(const ClockItem *item) {
     snprintf(s_title_text, sizeof(s_title_text), has_noun ? "%s" : "%s %s", item->label, noun);
   } else {
     snprintf(s_title_text, sizeof(s_title_text), "%s", timer ? "Timer done" : "Alarm");
+  }
+}
+
+void ring_window_push(const ClockItem *item, const char *text) {
+  if (s_window) {
+    // Already ringing for something else: show the newest.
+    prv_stop();
+    window_stack_remove(s_window, false);
+  }
+  s_item = *item;
+  snprintf(s_text, sizeof(s_text), "%s", text && text[0] ? text : item->label);
+  if (item->kind == ClockKindReminder) {
+    // The reminder's own words, as said: "Call Mom".
+    snprintf(s_title_text, sizeof(s_title_text), "%s", s_text[0] ? s_text : "Reminder");
+    if (s_title_text[0] >= 'a' && s_title_text[0] <= 'z') s_title_text[0] -= 32;
+  } else {
+    prv_title_for(item);
   }
   s_window = window_create();
   window_set_window_handlers(s_window, (WindowHandlers){

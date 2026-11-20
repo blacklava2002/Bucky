@@ -34,9 +34,9 @@ void home_confirm_send(int32_t request_id);
 // The phone has turned Quiet Time on: start listening.
 void home_quiet_ready(void);
 
-// The Down menu: Alarms and Timers (menu.c).
+// The Down menu: Alarms, Timers and Reminders (menu.c).
 void menu_window_push(void);
-// One list, timers or alarms (lists.c).
+// One list: timers, alarms or reminders (lists.c).
 void clock_list_push(ClockKind kind);
 
 // Example prompts on the Up button (prompts.c).
@@ -53,7 +53,8 @@ void reply_window_push(const char *headline, const char *body);
 void reply_window_push_confirm(const char *headline, const char *body, int32_t request_id);
 
 // Ringing screen (ring.c).
-void ring_window_push(const ClockItem *item);
+// text: the item's whole label (a reminder's words).
+void ring_window_push(const ClockItem *item, const char *text);
 
 // The sprite's frames (sprite.c). The art is in resources/images/sprite_*.png.
 typedef enum {
