@@ -569,18 +569,18 @@ test('Google Messages plugin: recent chat names make "tell X" work, and its erro
   assert.equal(last.RESULT_TEXT, 'Bridge not paired');
 });
 
-test('"isn\'t available" is retried up to 3 times, then explained with the reason', async () => {
+test('"isn\'t available" is retried twice (3 tries), then explained with the reason', async () => {
   let calls = 0;
   const h = host(PLUGINS, () => { calls++; return Promise.resolve({ ok: false, code: 'PLUGIN_UNAVAILABLE', message: 'plugin is restarting' }); });
   h.mod.AGENT_RETRY.delayMs = 1;
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'check the build', REQ_ID: 3 } });
   await new Promise((r) => setTimeout(r, 40));
-  assert.equal(calls, 4);
+  assert.equal(calls, 3);
   const last = h.sent.pop();
   assert.equal(last.RESULT_OK, 0);
   assert.equal(last.RESULT_TEXT, "Claude isn't available");
   assert.equal(last.RESULT_DETAIL, 'plugin is restarting');
-  assert.equal(h.sent.pop().RESULT_TEXT, 'Retrying Claude (3 of 3)...');
+  assert.equal(h.sent.pop().RESULT_TEXT, 'Retrying Claude (2 of 2)...');
 });
 
 test('a retry that gets through reports sent', async () => {

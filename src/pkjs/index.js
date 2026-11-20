@@ -19,8 +19,8 @@ var sources = require('./sources');
 
 var AGENT_ACTION = 'send_to_agent';
 // "Isn't available" comes back before the plugin takes the message, so trying again can't
-// send it twice. Three more tries, two seconds apart, ride out a plugin that's waking up.
-var AGENT_RETRY = { tries: 3, delayMs: 2000 };
+// send it twice. Two more tries, two seconds apart, ride out a plugin that's waking up.
+var AGENT_RETRY = { tries: 2, delayMs: 2000 };
 // Store plugins from github.com/coredevices/pebble-apps, in the order we prefer them.
 var KNOWN_AGENTS = [
   { uuid: '0d33014e-5d56-42ea-9665-3ebf182b4cfb', name: 'Claude' },
