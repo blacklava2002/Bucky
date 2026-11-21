@@ -91,6 +91,7 @@ signed in to there, Bucky can use.
 **Made to fit how you use it**
 - Up on the home screen lists example prompts. Pick one and Bucky acts on it as if you'd said it.
   Change the list in settings.
+- Pick your own background and clock colors from Pebble's 64. Other text stays readable.
 - Open Bucky from a quick-launch button and it starts listening straight away.
 - Optionally check the transcript before Bucky acts.
 - Optionally turn on Quiet Time while Bucky listens, so a notification can't cut you off mid-sentence.
