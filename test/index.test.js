@@ -596,7 +596,7 @@ test('Google Messages plugin: recent chat names make "tell X" work, and its erro
 test('"isn\'t available" is retried twice (3 tries), then explained with the reason', async () => {
   let calls = 0;
   const h = host(PLUGINS, () => { calls++; return Promise.resolve({ ok: false, code: 'PLUGIN_UNAVAILABLE', message: 'plugin is restarting' }); });
-  h.mod.AGENT_RETRY.delayMs = 1;
+  h.mod.AGENT_RETRY.delaysMs = [1, 1];
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'check the build', REQ_ID: 3 } });
   await new Promise((r) => setTimeout(r, 40));
   assert.equal(calls, 3);
@@ -610,7 +610,7 @@ test('"isn\'t available" is retried twice (3 tries), then explained with the rea
 test('a retry that gets through reports sent', async () => {
   let calls = 0;
   const h = host(PLUGINS, () => { calls++; return Promise.resolve(calls < 3 ? { ok: false, code: 'PLUGIN_UNAVAILABLE' } : { ok: true }); });
-  h.mod.AGENT_RETRY.delayMs = 1;
+  h.mod.AGENT_RETRY.delaysMs = [1, 1];
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'check the build', REQ_ID: 5 } });
   await new Promise((r) => setTimeout(r, 40));
   assert.equal(calls, 3);
@@ -620,7 +620,7 @@ test('a retry that gets through reports sent', async () => {
 test('a timeout is never retried', async () => {
   let calls = 0;
   const h = host(PLUGINS, () => { calls++; return Promise.resolve({ ok: false, code: 'TIMEOUT' }); });
-  h.mod.AGENT_RETRY.delayMs = 1;
+  h.mod.AGENT_RETRY.delaysMs = [1, 1];
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'check the build', REQ_ID: 6 } });
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(calls, 1);
@@ -685,7 +685,7 @@ test('lists turned off go to the agent, reminders still ring on the watch', asyn
 
 test('the transcript log records each agent try and its reason', async () => {
   const h = host(PLUGINS, (req) => Promise.resolve({ ok: false, code: 'PLUGIN_UNAVAILABLE', message: 'not running' }));
-  h.mod.AGENT_RETRY.delayMs = 1;
+  h.mod.AGENT_RETRY.delaysMs = [1, 1];
   h.listeners.appmessage({ payload: { TRANSCRIPT: 'tell Claude hello', REQ_ID: 7 } });
   await new Promise((r) => setTimeout(r, 30));
   let entries;

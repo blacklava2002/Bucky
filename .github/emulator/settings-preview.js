@@ -29,7 +29,7 @@ global.Pebble = {
 };
 Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true });
 const mod = require(path.resolve('src/pkjs/index.js'));
-mod.AGENT_RETRY.delayMs = 5;
+mod.AGENT_RETRY.delaysMs = [5, 5];
 
 const said = ['set a timer for 10 minutes', 'tell Muse to pick up bread on the way home', 'ask Claude what to make for dinner'];
 let id = 1;

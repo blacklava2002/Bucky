@@ -20,8 +20,8 @@ var sources = require('./sources');
 
 var AGENT_ACTION = 'send_to_agent';
 // "Isn't available" comes back before the plugin takes the message, so trying again can't
-// send it twice. Two more tries, two seconds apart, ride out a plugin that's waking up.
-var AGENT_RETRY = { tries: 2, delayMs: 2000 };
+// send it twice. Two more tries, after 3 and then 10 seconds, ride out a plugin that's waking up.
+var AGENT_RETRY = { tries: 2, delaysMs: [3000, 10000] };
 // Store plugins from github.com/coredevices/pebble-apps, in the order we prefer them.
 var KNOWN_AGENTS = [
   { uuid: '0d33014e-5d56-42ea-9665-3ebf182b4cfb', name: 'Claude' },
@@ -514,7 +514,9 @@ function attemptAgent(agent, message, requestId, retries) {
         result(requestId, 1, 'Sent to ' + agent.name, '"' + message + '"');
       } else if (res && res.code === 'PLUGIN_UNAVAILABLE' && retries < AGENT_RETRY.tries) {
         result(requestId, 2, 'Retrying ' + agent.name + ' (' + (retries + 1) + ' of ' + AGENT_RETRY.tries + ')...', res.message || '');
-        setTimeout(function () { attemptAgent(agent, message, requestId, retries + 1); }, AGENT_RETRY.delayMs);
+        var delays = AGENT_RETRY.delaysMs || [];
+        var wait = delays[Math.min(retries, delays.length - 1)] || 0;
+        setTimeout(function () { attemptAgent(agent, message, requestId, retries + 1); }, wait);
       } else {
         var why = explain(agent, res || {});
         result(requestId, 0, why[0], why[1]);
