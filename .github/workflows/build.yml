@@ -99,6 +99,10 @@ jobs:
               cd "$ROOT"
             done
           done
+          # The settings page, in Chrome, fed by the real phone side.
+          node .github/emulator/settings-preview.js > settings-preview.html && \
+            google-chrome --headless=new --disable-gpu --hide-scrollbars --window-size=412,7000 \
+              --screenshot="$ROOT/shots/settings.png" "file://$ROOT/settings-preview.html" > /dev/null 2>&1 || true
           for f in shots/*.png; do echo "SHOT $f"; base64 -w0 "$f"; echo; echo "END SHOT"; done
       - uses: actions/upload-artifact@v4
         with:
