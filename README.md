@@ -17,6 +17,8 @@ your agent instead.
 - **Example prompts:** Up lists a few things to say ("What's the current weather?", "Set a 5
   minute tea timer.", ...). Pick one and Bucky acts on it as if you'd said it. Edit the list
   in settings (up to 10).
+- **Transcript log:** settings keeps the last 100 things you said and what came of them,
+  step by step, including each try at an agent and why it failed. Clear it any time.
 - **Colors:** pick the background and the clock's color in settings, from Pebble's 64 colors.
   Other text turns black or white to stay readable. Black and white watches use black or white.
 - **Talk:** Select on the home screen (or open it from a quick-launch button, which starts

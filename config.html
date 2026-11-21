@@ -45,6 +45,19 @@ button { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; 
   height: 84px; border-radius: 14px; margin-top: 4px; border: 1px solid rgba(128,128,128,.35); }
 .preview .time { font-size: 38px; font-weight: 700; line-height: 1; }
 .preview .text { font-size: 13px; font-weight: 600; }
+.log { list-style: none; margin: 8px 0 0; padding: 0; }
+.log li { border-top: 1px solid rgba(128,128,128,.25); padding: 8px 0; }
+.log details > summary { list-style: none; cursor: pointer; }
+.log details > summary::-webkit-details-marker { display: none; }
+.log .when { font-size: 12px; opacity: .65; }
+.log .said { font-weight: 600; margin: 2px 0; }
+.log .said::before { content: '\201C'; } .log .said::after { content: '\201D'; }
+.log .what { font-size: 13px; }
+.log .what::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: #999; }
+.log .done .what::before { background: #2a8; } .log .failed .what::before { background: #d44; }
+.log .asked .what::before { background: #c90; }
+.log ol { margin: 6px 0 0; padding-left: 18px; font-size: 12px; opacity: .8; }
+.log ol li { border: 0; padding: 2px 0; }
 button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 .empty { padding: 12px; border-radius: 10px; background: rgba(200,120,0,.12); font-size: 14px; }
 </style>
@@ -140,6 +153,13 @@ button.quiet { background: transparent; color: var(--accent); border: 1px solid 
 <div class="swatches" id="clockSwatches"></div>
 </div>
 <p class="hint" id="colorHint"></p>
+</section>
+
+<section class="card">
+<h2>Transcript log</h2>
+<p class="hint">The last 100 things you said and what came of them. Tap one for each step.</p>
+<div class="row"><button class="quiet" id="refreshLog">Refresh</button><button class="quiet" id="clearLog">Clear</button></div>
+<ul class="log" id="log"></ul>
 </section>
 
 <script>
@@ -363,6 +383,51 @@ function renderColors(s) {
   p.querySelector('.text').style.color = hex(look.text);
 }
 
+var OUTCOME_WORDS = { done: 'Done', failed: 'Failed', working: 'No answer yet', asked: 'Asked first' };
+function when(ms) {
+  var d = new Date(ms), now = new Date();
+  var time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return 'Today ' + time;
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
+}
+function renderLog(entries) {
+  var box = el('log');
+  box.innerHTML = '';
+  if (!entries || !entries.length) {
+    var none = document.createElement('li');
+    none.className = 'hint';
+    none.textContent = 'Nothing yet.';
+    box.appendChild(none);
+    return;
+  }
+  entries.forEach(function (e) {
+    var li = document.createElement('li');
+    li.className = e.outcome || '';
+    var det = document.createElement('details');
+    var sum = document.createElement('summary');
+    var w = document.createElement('div'); w.className = 'when'; w.textContent = when(e.t);
+    var said = document.createElement('div'); said.className = 'said'; said.textContent = e.said;
+    var steps = e.steps || [];
+    var last = steps.length ? steps[steps.length - 1].text : '';
+    var what = document.createElement('div'); what.className = 'what';
+    what.textContent = (OUTCOME_WORDS[e.outcome] || 'Done') + (last ? ': ' + last : '');
+    sum.appendChild(w); sum.appendChild(said); sum.appendChild(what);
+    det.appendChild(sum);
+    var ol = document.createElement('ol');
+    steps.forEach(function (st) {
+      var item = document.createElement('li');
+      item.textContent = '+' + (st.ms / 1000).toFixed(1) + 's ' + st.text;
+      ol.appendChild(item);
+    });
+    det.appendChild(ol);
+    li.appendChild(det);
+    box.appendChild(li);
+  });
+}
+function loadLog() {
+  Pebble.sendMessage('pkjs', { type: 'log' }).then(function (r) { renderLog(r.entries); });
+}
+
 function set(change) {
   change.type = 'set';
   Pebble.sendMessage('pkjs', change).then(render);
@@ -394,6 +459,18 @@ el('vibeTimer').onchange = function () { set({ vibeTimer: Number(el('vibeTimer')
 el('quickTalk').onchange = function () { set({ quickTalk: el('quickTalk').checked }); };
 el('bgDefault').onclick = function () { set({ bgColor: 0 }); };
 el('clockDefault').onclick = function () { set({ clockColor: 0 }); };
+el('refreshLog').onclick = loadLog;
+// Two taps, so a stray one can't wipe the log.
+el('clearLog').onclick = function () {
+  var b = el('clearLog');
+  if (b.textContent !== 'Tap again to clear') {
+    b.textContent = 'Tap again to clear';
+    setTimeout(function () { b.textContent = 'Clear'; }, 4000);
+    return;
+  }
+  b.textContent = 'Clear';
+  Pebble.sendMessage('pkjs', { type: 'clearLog' }).then(function (r) { renderLog(r.entries); });
+};
 el('quietListen').onchange = function () { set({ quietListen: el('quietListen').checked }); };
 
 Pebble.addEventListener('message', function (e) {
@@ -403,6 +480,7 @@ Pebble.addEventListener('ready', function (e) {
   if (e.target !== 'pkjs') return;
   el('status').textContent = 'Changes save straight away.';
   Pebble.sendMessage('pkjs', { type: 'state' }).then(render);
+  loadLog();
 });
 </script>
 </body>

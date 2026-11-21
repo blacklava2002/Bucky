@@ -682,3 +682,19 @@ test('lists turned off go to the agent, reminders still ring on the watch', asyn
   await tick();
   assert.equal(calls[0].action, 'send_to_agent');
 });
+
+test('the transcript log records each agent try and its reason', async () => {
+  const h = host(PLUGINS, (req) => Promise.resolve({ ok: false, code: 'PLUGIN_UNAVAILABLE', message: 'not running' }));
+  h.mod.AGENT_RETRY.delayMs = 1;
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'tell Claude hello', REQ_ID: 7 } });
+  await new Promise((r) => setTimeout(r, 30));
+  let entries;
+  h.listeners.configmessage({ data: { type: 'log' }, respond: (s) => { entries = s.entries; } });
+  const e = entries[0];
+  assert.equal(e.said, 'tell Claude hello');
+  assert.equal(e.outcome, 'failed');
+  const tries = e.steps.filter((s) => / try \d: PLUGIN_UNAVAILABLE \(not running\)/.test(s.text));
+  assert.equal(tries.length, 3);
+  h.listeners.configmessage({ data: { type: 'clearLog' }, respond: (s) => { entries = s.entries; } });
+  assert.equal(entries.length, 0);
+});

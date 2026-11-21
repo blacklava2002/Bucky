@@ -15,6 +15,7 @@ var prefs = require('./prefs');
 var indexkit = require('./indexkit');
 var destinations = require('./destinations');
 var quietMod = require('./quiet');
+var transcripts = require('./transcripts');
 var sources = require('./sources');
 
 var AGENT_ACTION = 'send_to_agent';
@@ -200,7 +201,25 @@ function watchConfigured(agents) {
 var queue = [];
 var sending = false;
 
+// The transcript log (transcripts.js), shown on the settings page.
+var transcriptLog = transcripts.create({ load: load, save: save, now: function () { return Date.now(); } });
+
+// Whether the phone says it's online: true, false, or null when it doesn't say.
+function online() {
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') return navigator.onLine;
+  } catch (e) { /* not available */ }
+  return null;
+}
+
+function networkWords() {
+  var on = online();
+  return on === true ? 'phone online' : on === false ? 'phone offline' : 'network unknown';
+}
+
 function send(message) {
+  var step = transcripts.describe(message);
+  if (step) transcriptLog.note(message.REQ_ID, step.text, step.outcome);
   queue.push(message);
   pump();
 }
@@ -293,6 +312,7 @@ function clip(text, max) {
 
 function handleTranscript(text, requestId) {
   log('heard: ' + text);
+  transcriptLog.heard(requestId, text);
   prefs.refresh();
   var agents = listAgents();
   var addressed = intent.pickAgent(text, agents);
@@ -479,9 +499,17 @@ function sendToAgent(agent, message, requestId) {
 
 function attemptAgent(agent, message, requestId, retries) {
   var finished = false;
+  var started = Date.now();
+  function noteTry(res) {
+    var what = res && res.ok ? 'ok' : (res && res.code) || 'no answer';
+    var why = res && !res.ok && res.message ? ' (' + res.message + ')' : '';
+    transcriptLog.note(requestId, agent.name + ' try ' + (retries + 1) + ': ' + what + why + ', ' +
+      ((Date.now() - started) / 1000).toFixed(1) + 's, ' + networkWords());
+  }
   Pebble.invokeAction({ plugin: agent.uuid, action: AGENT_ACTION, args: { message: message } })
     .then(function (res) {
       finished = true;
+      noteTry(res);
       if (res && res.ok) {
         result(requestId, 1, 'Sent to ' + agent.name, '"' + message + '"');
       } else if (res && res.code === 'PLUGIN_UNAVAILABLE' && retries < AGENT_RETRY.tries) {
@@ -494,6 +522,7 @@ function attemptAgent(agent, message, requestId, retries) {
     }, function (err) {
       if (finished) return;
       finished = true;
+      noteTry({ ok: false, code: 'ERROR', message: String((err && err.message) || err || '') });
       result(requestId, 0, agent.name + ' failed', String((err && err.message) || err || ''));
     });
 }
@@ -507,6 +536,10 @@ function runAction(entry, requestId) {
   result(requestId, 2, entry.working, '');
   Pebble.invokeAction({ plugin: entry.plugin, action: entry.action, args: entry.args || {} })
     .then(function (res) {
+      if (!(res && res.ok)) {
+        transcriptLog.note(requestId, entry.name + ': ' + ((res && res.code) || 'no answer') +
+          (res && res.message ? ' (' + res.message + ')' : '') + ', ' + networkWords());
+      }
       if (res && res.ok) {
         result(requestId, 1, entry.done, entry.detail || '');
       } else {
@@ -779,6 +812,15 @@ Pebble.addEventListener('configmessage', function (e) {
   if (message.type === 'state') {
     watchConfigured(listAgents());
     e.respond(pageState());
+    return;
+  }
+  if (message.type === 'log') {
+    e.respond({ entries: transcriptLog.entries() });
+    return;
+  }
+  if (message.type === 'clearLog') {
+    transcriptLog.clear();
+    e.respond({ entries: [] });
     return;
   }
   if (message.type === 'set') {
