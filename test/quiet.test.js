@@ -26,6 +26,7 @@ function harness(state) {
     },
     invoke(args) {
       calls.push(args);
+      if (state.refuse > 0 && args.action !== 'set_on' && args.args.value !== 'Hide') { state.refuse--; return Promise.resolve({ ok: false }); }
       if (args.action === 'set_on') state.manual = args.args.on;
       if (args.action === 'set_value') state.show = args.args.value;
       return Promise.resolve({ ok: true });
@@ -114,4 +115,23 @@ test('a second listen while still quiet does not overwrite what to restore', asy
   await stopped(h.quiet);
   assert.equal(state.manual, false);
   assert.equal(state.show, 'Show');
+});
+
+test('a put-back the watch refuses is kept and tried again', async () => {
+  const state = { manual: true, show: 'Show' };
+  const h = harness(state);
+  await started(h.quiet);
+  assert.equal(state.show, 'Hide');
+  state.refuse = 1;
+  await stopped(h.quiet);
+  assert.equal(state.show, 'Hide');
+  assert.ok(h.quiet.pending());
+  const retry = h.timers.find((t) => t.ms === 30000);
+  assert.ok(retry);
+  h.timers.splice(h.timers.indexOf(retry), 1);
+  retry.fn();
+  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setImmediate(r));
+  assert.equal(state.show, 'Show');
+  assert.ok(!h.quiet.pending());
 });

@@ -14,6 +14,9 @@ var KEY = 'quietRestore';
 var READ_MS = 1500;
 var SET_MS = 2500;
 var SAFETY_MS = 90 * 1000;
+// A put-back the watch didn't confirm is tried again, this often and this many times.
+var RETRY_MS = 30 * 1000;
+var RETRIES = 5;
 
 // env: read(request, done, ms), invoke(args) -> Promise, load(key), save(key, value),
 // setTimeout, clearTimeout, log.
@@ -30,34 +33,37 @@ function create(env) {
     return r && typeof r === 'object' && (r.manual !== undefined || r.show !== undefined) ? r : null;
   }
 
-  // Runs each change, then done() once all have answered or SET_MS has passed.
+  // Runs each change, then done(allOk) once all have answered or SET_MS has passed.
   function apply(changes, done) {
     var left = changes.length;
     var finished = false;
     var timer = null;
-    function one() {
+    var allOk = true;
+    function one(ok) {
+      if (!ok) allOk = false;
       if (finished || --left > 0) return;
       finished = true;
       if (timer) env.clearTimeout(timer);
-      done();
+      done(allOk);
     }
-    if (!left) { done(); return; }
-    timer = env.setTimeout(function () { left = 1; one(); }, SET_MS);
+    if (!left) { done(true); return; }
+    timer = env.setTimeout(function () { left = 1; one(false); }, SET_MS);
     changes.forEach(function (args) {
       var call;
       try {
         call = env.invoke({ plugin: WATCH_SETTINGS, action: args.action, args: args.args });
       } catch (e) {
         env.log('quiet: ' + args.args.instanceId + ' failed: ' + e);
-        one();
+        one(false);
         return;
       }
       Promise.resolve(call).then(function (res) {
-        if (!res || !res.ok) env.log('quiet: ' + args.args.instanceId + ' refused: ' + JSON.stringify(res));
-        one();
+        var ok = !!(res && res.ok);
+        if (!ok) env.log('quiet: ' + args.args.instanceId + ' refused: ' + JSON.stringify(res));
+        one(ok);
       }, function (err) {
         env.log('quiet: ' + args.args.instanceId + ' failed: ' + ((err && err.message) || err));
-        one();
+        one(false);
       });
     });
   }
@@ -133,19 +139,30 @@ function create(env) {
     }, READ_MS);
   }
 
-  // Puts back whatever start() changed. done() is optional.
+  // Puts back whatever start() changed. done() is optional. What to put back stays in storage
+  // until the watch confirms it, so a lost or refused change is tried again (and on the next
+  // start) rather than leaving Quiet Time's notifications hidden for good.
   function stop(done) {
     if (starting) { stopAfterStart = true; if (done) stopWaiters.push(done); return; }
     if (safety) { env.clearTimeout(safety); safety = null; }
     var restore = record();
     if (!restore) { if (done) done(); return; }
-    env.save(KEY, null);
+    if (restoring) { if (done) restoring.push(done); return; }
     var changes = [];
     if (restore.manual !== undefined) changes.push({ action: 'set_on', args: { instanceId: MANUAL, on: !!restore.manual } });
     if (restore.show !== undefined) changes.push({ action: 'set_value', args: { instanceId: SHOW, value: String(restore.show) } });
-    restoring = restoring || [];
+    restoring = [];
     if (done) restoring.push(done);
-    apply(changes, function () {
+    apply(changes, function (ok) {
+      var tries = (restore.tries | 0) + 1;
+      if (ok || tries >= RETRIES) {
+        if (!ok) env.log('quiet: gave up putting Quiet Time back after ' + tries + ' tries');
+        env.save(KEY, null);
+      } else {
+        restore.tries = tries;
+        env.save(KEY, restore);
+        safety = env.setTimeout(function () { safety = null; stop(); }, RETRY_MS);
+      }
       var list = restoring;
       restoring = null;
       list.forEach(function (fn) { fn(); });
