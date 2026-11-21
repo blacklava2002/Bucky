@@ -96,6 +96,7 @@ signed in to there, Bucky can use.
 - Optionally check the transcript before Bucky acts.
 - Optionally turn on Quiet Time while Bucky listens, so a notification can't cut you off mid-sentence.
   Your Quiet Time settings go back the way they were afterwards.
+- Settings keeps a log of the last 100 things you said and what Bucky did with each.
 - Every feature has a checkbox in settings. Turn one off and those words go to your agent instead,
   for example messages to your agent rather than Beeper.
 - On the Pebble Time 2 and Round 2, Bucky is drawn bigger to fill the screen.
