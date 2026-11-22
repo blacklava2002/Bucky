@@ -54,6 +54,8 @@ var WHEN = new RegExp('(?:^|\\s)(in\\s+' + NUM + '\\s+' + UNIT + '\\b.*|(?:at|by
 
 var STARTS = new RegExp('^(?:in\\s+' + NUM + '\\s+' + UNIT + '\\b|(?:at|by|around)\\s+(?:\\d|noon|midnight)|tomorrow|tonight|today|later today|this (?:morning|afternoon|evening|weekend)|next\\s|on\\s|' + DAY + '|' + MONTH + '\\s+\\d)', 'i');
 
+var CLOCK_START = /^(?:\d{1,2}:\d{2}|\d{1,2}\s*(?:[ap]\.?\s?m\.?|o'?clock))(?:\s*[ap]\.?\s?m\.?)?\s/i;
+
 function timeArgs(when) {
   when = clean(when);
   if (!when) return {};
@@ -71,6 +73,8 @@ function reminder(text) {
   var when = '', message = rest;
   // Time first: "in 20 minutes to check the oven", "for Friday at 9 to pay rent".
   var lead = rest.replace(/^for\s+/i, '');
+  // A bare clock time means the next one: "for 4:05 to get the kids ready", "for 5 pm to ...".
+  if (CLOCK_START.test(lead)) lead = 'at ' + lead;
   var first = /^(.+?)\s+(?:to|that|about)\s+(.+)$/i.exec(lead);
   if (first && STARTS.test(lead)) {
     when = first[1];
