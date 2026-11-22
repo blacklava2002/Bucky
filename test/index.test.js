@@ -698,3 +698,36 @@ test('the transcript log records each agent try and its reason', async () => {
   h.listeners.configmessage({ data: { type: 'clearLog' }, respond: (s) => { entries = s.entries; } });
   assert.equal(entries.length, 0);
 });
+
+test('a timer for a clock time offers an alarm or a reminder', async () => {
+  const h = host(PLUGINS, () => Promise.resolve({ ok: true }));
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'Set a timer for 4:05 to take the kids home.', REQ_ID: 9 } });
+  await tick();
+  const last = h.sent.pop();
+  assert.equal(last.RESULT_OK, 4);
+  assert.equal(last.RESULT_TEXT, 'Did you mean...');
+  assert.equal(last.RESULT_DETAIL, '"Take the kids home"');
+  const [alarm, reminder, top, bottom] = last.REPLY.split('\n');
+  assert.equal(alarm, 'Set an alarm for 4:05 to take the kids home.');
+  assert.equal(reminder, 'Set a reminder for 4:05 to take the kids home.');
+  assert.match(top, /^Alarm 4:05/);
+  assert.match(bottom, /^Reminder 4:05/);
+  // The alarm choice, sent back, sets the alarm.
+  h.listeners.appmessage({ payload: { TRANSCRIPT: alarm, REQ_ID: 10 } });
+  await tick();
+  assert.equal(h.sent.pop().CLOCK_KIND, 2);
+  h.listeners.appmessage({ payload: { TRANSCRIPT: reminder, REQ_ID: 11 } });
+  await tick();
+  assert.equal(h.sent.pop().CLOCK_LABEL, 'Take the kids home');
+});
+
+test('a timer for a clock time with nothing to remind about offers only the alarm', async () => {
+  const h = host(PLUGINS, () => Promise.resolve({ ok: true }));
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'start a timer for 5:30 pm', REQ_ID: 12 } });
+  await tick();
+  const last = h.sent.pop();
+  assert.equal(last.RESULT_OK, 4);
+  const [alarm, reminder] = last.REPLY.split('\n');
+  assert.equal(alarm, 'Set an alarm for 5:30 pm');
+  assert.equal(reminder, '');
+});

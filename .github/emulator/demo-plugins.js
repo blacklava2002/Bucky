@@ -1,5 +1,5 @@
-// CI screenshots only: a fake messaging plugin and an alias, so the "Select sends" screen can be
-// shown. Appended to a throwaway copy of index.js after demo-weather.js; never in a release build.
+// CI screenshots only: a fake messaging plugin and an alias, so the "Select sends" and "Did you
+// mean..." screens can be shown. Appended to a throwaway copy of index.js after demo-weather.js; never in a release build.
 (function () {
   var chat = { uuid: '8197c57a-59c8-493e-9db1-eaab2988d010', name: 'Chat', sources: [], actions: [
     { name: 'send_message', parameters: { type: 'object', properties: { recipient: {}, text: {}, operation_id: {} } } }] };
@@ -11,7 +11,7 @@
   };
   try {
     localStorage.setItem('aliases', JSON.stringify('Sam = Samantha, wife'));
-    var list = DEFAULT_PROMPTS.slice(0, 9).concat(["Tell my wife I'm on my way."]);
+    var list = DEFAULT_PROMPTS.slice(0, 8).concat(["Tell my wife I'm on my way.", 'Set a timer for 4:05 to take the kids home.']);
     localStorage.setItem('prompts', JSON.stringify(list));
   } catch (e) { /* no storage */ }
 })();

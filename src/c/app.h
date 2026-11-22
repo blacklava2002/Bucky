@@ -34,13 +34,17 @@ bool comm_listen(bool listening);
 
 // Home screen (home.c).
 void home_window_push(bool start_talking);
-// ok: 0 failed, 1 done, 2 still working, 3 asks first (a message shown with "Select sends").
+// ok: 0 failed, 1 done, 2 still working, 3 asks first (a message shown with "Select sends"),
+// 4 "Did you mean..." (reply holds the choices, see suggest.c).
 void home_handle_result(int32_t request_id, int ok, const char *text, const char *detail,
                         const char *reply);
 void home_handle_clock(int32_t request_id, int kind, int32_t value, const char *label);
 void home_refresh_settings(void);
 // Select on the "Send?" screen.
 void home_confirm_send(int32_t request_id);
+// Sends words as if they'd been said, or listens again ("Did you mean..." screen).
+void home_send_text(const char *text);
+void home_talk(void);
 // The phone has turned Quiet Time on: start listening.
 void home_quiet_ready(void);
 
@@ -61,6 +65,9 @@ const char *prompts_get(int index);
 void reply_window_push(const char *headline, const char *body);
 // The same screen asking first: Select calls home_confirm_send(request_id), Back cancels.
 void reply_window_push_confirm(const char *headline, const char *body, int32_t request_id);
+
+// "Did you mean..." (suggest.c): Up the alarm, Down the reminder, Select listens again.
+void suggest_window_push(const char *headline, const char *label, const char *choices);
 
 // Ringing screen (ring.c).
 // text: the item's whole label (a reminder's words).

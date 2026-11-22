@@ -433,6 +433,27 @@ function indexAsk(text, requestId) {
   return true;
 }
 
+// "Set a timer for 4:05 to take the kids home" can't be a timer. The same words with an alarm
+// or a reminder instead, each checked, for the watch's "Did you mean..." screen.
+function didYouMean(text, now) {
+  var alarm = String(text || '').trim()
+    .replace(/\b(?:a\s+|the\s+|my\s+)?timer\b/i, 'an alarm')
+    .replace(/^(?:(?:ok|okay|hey|please)[,\s]+)*(?:start|begin|make|create|put on|put|add)\b/i, 'Set');
+  if (!/\ban alarm\b/.test(alarm)) return null;
+  var a = intent.parse(alarm, now);
+  if (a.kind !== 'alarm') return null;
+  var at = new Date(a.time * 1000);
+  var shown = prefs.time(at) + (at.toDateString() === now.toDateString() ? '' : ' ' + at.toDateString().slice(0, 3));
+  var out = { alarm: alarm, alarmShown: 'Alarm ' + shown, reminder: '', reminderShown: '', label: a.label ? '"' + a.label + '"' : '' };
+  var reminderWords = alarm.replace(/\ban alarm\b/, 'a reminder');
+  var r = enabled('reminders') ? indexkit.reminder(reminderWords) : null;
+  if (r && r.when && destinations.due(r.when, now)) {
+    out.reminder = reminderWords;
+    out.reminderShown = 'Reminder ' + shown;
+  }
+  return out;
+}
+
 // Alarms and timers ring on the phone instead when settings say so and Timers & Alarms (Index) is there.
 function clockOnPhone(action) {
   if (load(STORE.clockOn, 'watch') !== 'phone') return false;
@@ -479,6 +500,15 @@ function handleRest(text, requestId, agents) {
       return;
     case 'unclear':
       result(requestId, 0, parsed.reason, '"' + text + '"');
+      return;
+    case 'didyoumean':
+      var choices = didYouMean(text, new Date());
+      if (!choices) {
+        result(requestId, 0, 'How long should the timer be?', '"' + text + '"');
+        return;
+      }
+      send({ REQ_ID: requestId, RESULT_OK: 4, RESULT_TEXT: 'Did you mean...', RESULT_DETAIL: clip(choices.label, 150),
+        REPLY: [choices.alarm, choices.reminder, choices.alarmShown, choices.reminderShown].join('\n') });
       return;
   }
   sendToAgent(selectedAgent(agents), text, requestId);

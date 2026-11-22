@@ -73,6 +73,11 @@ function describe(message) {
   }
   if (message.RESULT_OK !== undefined) {
     var text = String(message.RESULT_TEXT || '');
+    if (message.RESULT_OK === 4) {
+      // "Did you mean...": the choices offered, by what each button shows.
+      var shown = String(message.REPLY || '').split('\n').slice(2).filter(Boolean);
+      return { text: 'Did you mean: ' + shown.join(' or ') + (message.RESULT_DETAIL ? ' — ' + message.RESULT_DETAIL : ''), outcome: 'asked' };
+    }
     if (message.RESULT_DETAIL) text += ' — ' + message.RESULT_DETAIL;
     else if (message.REPLY && message.RESULT_OK !== 3) text += ' — ' + message.REPLY;
     return { text: text, outcome: OUTCOMES[message.RESULT_OK] || 'working' };

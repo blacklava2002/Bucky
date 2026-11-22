@@ -440,6 +440,17 @@ void home_handle_result(int32_t request_id, int ok, const char *text, const char
     reply_window_push_confirm(text, reply, request_id);
     return;
   }
+  if (ok == 4) {
+    // "Did you mean...": the choices go on their own screen, nothing is set yet.
+    s_waiting = false;
+    s_quick = false;
+    prv_cancel(&s_anim_timer);
+    prv_cancel(&s_timeout_timer);
+    prv_show("", "");
+    prv_set_frame(SpriteIdle);
+    suggest_window_push(text, detail, reply);
+    return;
+  }
   if (ok == 1 && reply && reply[0]) {
     // Something to read: stay open, and show it on the reply screen.
     s_quick = false;
@@ -454,6 +465,16 @@ void home_handle_result(int32_t request_id, int ok, const char *text, const char
     return;
   }
   prv_finish(ok == 1, text, detail && detail[0] ? detail : s_sub_text);
+}
+
+void home_send_text(const char *text) {
+  if (!s_window || s_waiting || !text || !text[0]) return;
+  prv_send(text);
+}
+
+void home_talk(void) {
+  if (!s_window) return;
+  prv_talk();
 }
 
 void home_confirm_send(int32_t request_id) {
