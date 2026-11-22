@@ -89,16 +89,18 @@ static void prv_load(Window *window) {
   int left = PAD;
   int width = bounds.size.w - ACTION_BAR_WIDTH - PAD - left;
   bool wide = bounds.size.w >= 200;
-  GFont head_font = fonts_get_system_font(wide ? FONT_KEY_GOTHIC_28_BOLD : FONT_KEY_GOTHIC_24_BOLD);
+  // Narrow and round screens get a smaller headline, so "Did you mean..." fits on one line.
+  bool big_head = wide && !PBL_IF_ROUND_ELSE(true, false);
+  GFont head_font = fonts_get_system_font(big_head ? FONT_KEY_GOTHIC_28_BOLD : FONT_KEY_GOTHIC_18_BOLD);
   GFont choice_font = fonts_get_system_font(wide ? FONT_KEY_GOTHIC_24_BOLD : FONT_KEY_GOTHIC_18_BOLD);
   GFont label_font = fonts_get_system_font(wide ? FONT_KEY_GOTHIC_24 : FONT_KEY_GOTHIC_18);
-  int head_h = wide ? 34 : 28;
+  int head_h = big_head ? 34 : 24;
   int choice_h = wide ? 30 : 24;
   GTextAlignment align = PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft);
   GTextAlignment choice_align = PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentRight);
 
   // The headline up top, each choice beside its button, and the words between them.
-  int top_y = PBL_IF_ROUND_ELSE(18, 0);
+  int top_y = PBL_IF_ROUND_ELSE(20, 2);
   s_head = prv_text(root, GRect(left, top_y, width, head_h), s_head_text, head_font, theme_accent(), align);
   int up_y = h / 4 + PBL_IF_ROUND_ELSE(4, 2);
   if (up_y < top_y + head_h) up_y = top_y + head_h;
