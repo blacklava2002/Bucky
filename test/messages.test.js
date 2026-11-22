@@ -54,3 +54,18 @@ test('explainKnown turns Google Messages plugin errors into watch text', () => {
   assert.equal(m.explainKnown('Something else'), null);
   assert.deepEqual(m.chatNames([{ properties: { name: { shortText: { text: 'Alex' } } } }, { properties: { name: { shortText: { text: 'alex' } } } }, {}]), ['Alex']);
 });
+
+test('"ask" sends to known names, with or without a colon', () => {
+  assert.deepEqual(m.ask('Ask Samantha: what time is dinner', aliases),
+    { recipient: 'Sam', spoken: 'Samantha', body: 'What time is dinner?', known: true });
+  assert.equal(m.ask('ask my wife to grab milk.', aliases).body, 'Can you grab milk?');
+  assert.equal(m.ask('Ask Mom if she wants pizza', aliases).recipient, 'Mom');
+  assert.equal(m.ask('ask what the weather is', aliases), null);
+  assert.equal(m.ask('ask Claude what the weather is', aliases), null);
+});
+
+test('a colon after the name is not part of it', () => {
+  assert.equal(m.ask('Text Jordan: on my way.', aliases).recipient, 'Jordan');
+  assert.equal(m.ask('Tell Samantha: I am late.', aliases).spoken, 'Samantha');
+  assert.equal(m.ask('text Jordan are you home?', aliases).body, 'Are you home?');
+});
