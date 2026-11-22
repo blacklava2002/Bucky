@@ -327,6 +327,8 @@ function ordinalSuffix(n) {
   return ['th', 'st', 'nd', 'rd'][n % 10] || 'th';
 }
 
+// Words that can only be a time of day: "4:05", "5 pm", "seven o'clock", "noon".
+var CLOCK_SAID = /\b\d{1,2}:\d{2}\b|\b(?:[ap]\.?\s?m\b\.?|o'?\s?clock\b|noon\b|midnight\b)/i;
 var TIMER_WORDS = /\b(timer|timers|countdown|count down)\b/;
 var ALARM_WORDS = /\b(alarm|alarms|wake me( up)?)\b/;
 var REMINDER_WORDS = /\breminders?\b/;
@@ -370,6 +372,8 @@ function parse(text, now) {
 
   if (isTimer) {
     var seconds = parseDuration(t);
+    // "a timer for 4:05" is a clock time, not a length: offer an alarm or a reminder instead.
+    if (!seconds && CLOCK_SAID.test(t) && parseClock(t)) return { kind: 'didyoumean', label: extractLabel(t, 'timer') };
     if (!seconds) return { kind: 'unclear', reason: 'How long should the timer be?' };
     if (seconds > 24 * 3600) return { kind: 'unclear', reason: 'Timers can be up to 24 hours.' };
     return { kind: 'timer', seconds: seconds, label: extractLabel(t, 'timer') };
