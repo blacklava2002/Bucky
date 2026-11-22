@@ -55,3 +55,18 @@ test('messages to the watch read as steps', () => {
   assert.deepEqual(transcripts.describe({ REQ_ID: 3, RESULT_OK: 0, RESULT_TEXT: "Muse isn't available", RESULT_DETAIL: 'Plugin not running' }),
     { text: "Muse isn't available — Plugin not running", outcome: 'failed' });
 });
+
+test('the log exports as CSV and JSON, oldest first', () => {
+  const t = require('../src/pkjs/transcripts.js');
+  const entries = [
+    { t: new Date(2026, 10, 22, 16, 1).getTime(), said: 'Set a timer for 5 minutes', outcome: 'done', steps: [{ ms: 400, text: 'Timer set' }] },
+    { t: new Date(2026, 10, 22, 16, 0).getTime(), said: 'Text Sam "hi", ok', outcome: 'failed', steps: [] },
+  ];
+  const csv = t.toCsv(entries).split('\r\n');
+  assert.equal(csv[0], 'time,said,outcome,result,steps');
+  assert.equal(csv[1], '2026-11-22 16:00:00,"Text Sam ""hi"", ok",failed,,');
+  assert.equal(csv[2], '2026-11-22 16:01:00,Set a timer for 5 minutes,done,Timer set,+0.4s Timer set');
+  const json = JSON.parse(t.toJson(entries));
+  assert.equal(json[0].said, 'Text Sam "hi", ok');
+  assert.deepEqual(json[1].steps, [{ seconds: 0.4, text: 'Timer set' }]);
+});

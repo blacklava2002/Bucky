@@ -59,7 +59,7 @@ function create(env) {
 }
 
 // What a message to the watch says, as a log step, or null for messages that aren't answers.
-var OUTCOMES = { 0: 'failed', 1: 'done', 2: 'working', 3: 'asked' };
+var OUTCOMES = { 0: 'failed', 1: 'done', 2: 'working', 3: 'asked', 4: 'asked' };
 var CLOCK_WORDS = { 1: 'Timer set', 2: 'Alarm set', 3: 'Timer cancelled', 4: 'Alarm cancelled', 5: 'List opened',
   6: 'Reminder set', 7: 'Reminder cancelled' };
 
@@ -85,4 +85,41 @@ function describe(message) {
   return null;
 }
 
-module.exports = { create: create, describe: describe, MAX: MAX };
+// ------------------------------------------------------------------ export
+
+function csvCell(value) {
+  var text = String(value === undefined || value === null ? '' : value);
+  return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+}
+
+// "2026-11-22 16:05:00" in the phone's own time, which spreadsheets read as a date.
+function localTime(t) {
+  var d = new Date(t);
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + ' ' +
+    two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds());
+}
+
+function stepWords(entry) {
+  return (entry.steps || []).map(function (st) { return '+' + ((st.ms || 0) / 1000).toFixed(1) + 's ' + st.text; });
+}
+
+// One row per thing said, oldest first: when, the words, how it ended, the last step and all of them.
+function toCsv(entries) {
+  var rows = [['time', 'said', 'outcome', 'result', 'steps']];
+  (entries || []).slice().reverse().forEach(function (e) {
+    var steps = e.steps || [];
+    rows.push([localTime(e.t), e.said, e.outcome, steps.length ? steps[steps.length - 1].text : '',
+      stepWords(e).join(' | ')]);
+  });
+  return rows.map(function (row) { return row.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+}
+
+function toJson(entries) {
+  return JSON.stringify((entries || []).slice().reverse().map(function (e) {
+    return { time: new Date(e.t).toISOString(), said: e.said, outcome: e.outcome,
+      steps: (e.steps || []).map(function (st) { return { seconds: (st.ms || 0) / 1000, text: st.text }; }) };
+  }), null, 2);
+}
+
+module.exports = { create: create, describe: describe, toCsv: toCsv, toJson: toJson, MAX: MAX };

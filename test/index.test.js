@@ -731,3 +731,28 @@ test('a timer for a clock time with nothing to remind about offers only the alar
   assert.equal(alarm, 'Set an alarm for 5:30 pm');
   assert.equal(reminder, '');
 });
+
+test('settings back up to JSON and restore', () => {
+  const h = host(PLUGINS, null);
+  let page;
+  h.listeners.configmessage({ data: { type: 'set', agent: 'b8346592-cd59-4b83-9185-87d94e0734b0', bgColor: 209,
+    aliases: 'Sam = Samantha', prompts: ['Hello there.'] }, respond: () => {} });
+  h.listeners.configmessage({ data: { type: 'backup' }, respond: (r) => { page = r; } });
+  const backup = JSON.parse(page.backup);
+  assert.equal(backup.kind, 'settings');
+  assert.equal(backup.settings.bgColor, 209);
+  assert.equal(backup.settings.aliases, 'Sam = Samantha');
+  assert.equal(backup.settings.transcripts, undefined);
+
+  const fresh = host(PLUGINS, null);
+  fresh.listeners.configmessage({ data: { type: 'restore', backup: page.backup }, respond: (r) => { page = r; } });
+  assert.ok(page.restored > 0);
+  assert.equal(page.agent, 'b8346592-cd59-4b83-9185-87d94e0734b0');
+  assert.equal(page.bgColor, 209);
+  assert.deepEqual(page.prompts, ['Hello there.']);
+
+  fresh.listeners.configmessage({ data: { type: 'restore', backup: '{"hello":1}' }, respond: (r) => { page = r; } });
+  assert.match(page.error, /isn't a settings backup/);
+  fresh.listeners.configmessage({ data: { type: 'restore', backup: 'not json' }, respond: (r) => { page = r; } });
+  assert.match(page.error, /JSON/);
+});
