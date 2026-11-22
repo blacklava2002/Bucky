@@ -91,14 +91,24 @@ function tidyBody(body) {
   return body ? body.charAt(0).toUpperCase() + body.slice(1) : '';
 }
 
+var QUESTION = /^(?:what|when|where|who|whose|why|how|which|can|could|are|is|do|does|did|will|would|should|have|has)\b/i;
+
+// "to grab milk" -> "Can you grab milk?"; a question gets its question mark.
+function askBody(body) {
+  var m = /^to\s+(.+)$/i.exec(body);
+  if (m) body = 'Can you ' + m[1].replace(/\?$/, '') + '?';
+  else if (body && QUESTION.test(body) && !/\?$/.test(body)) body += '?';
+  return body;
+}
+
 // The recipient and the words. Unknown names are guessed as the first word, or everything
 // before "saying"/"that", and shown on the watch before anything is sent.
 function split(rest, aliases, mayGuess) {
   rest = clean(rest).replace(/^[:,]\s*/, '');
   var known = knownPrefix(rest, aliases);
-  if (known) return { recipient: known.contact, spoken: known.spoken, body: tidyBody(known.body), known: true };
+  if (known) return { recipient: known.contact, spoken: known.spoken.replace(/:$/, ''), body: tidyBody(known.body), known: true };
   if (!mayGuess) return null;
-  var said = /^(.{1,40}?)\s+(?:saying|that says|that|to say|:)\s+(.+)$/i.exec(rest);
+  var said = /^(.{1,40}?)(?:\s+(?:saying|that says|that|to say)|\s*:)\s+(.+)$/i.exec(rest);
   if (said) return { recipient: clean(said[1]).replace(/^my\s+/i, ''), spoken: clean(said[1]), body: tidyBody(said[2]), known: false };
   var phone = /^(\+?\d[\d\s().-]{5,}\d)\s+(\D.*)$/.exec(rest);
   if (phone) return { recipient: phone[1].replace(/[\s().-]/g, ''), spoken: phone[1], body: tidyBody(phone[2]), known: false };
@@ -110,7 +120,8 @@ function split(rest, aliases, mayGuess) {
 // Returns null, or { recipient, spoken, body, known }. body may be '' when only a name was said.
 function ask(text, aliases) {
   aliases = aliases || {};
-  var t = clean(text).replace(LEAD, '').replace(/[.!?]+$/, '');
+  // A question keeps its question mark; the rest of the end punctuation goes.
+  var t = clean(text).replace(LEAD, '').replace(/[.!]+$/, '').replace(/\?{2,}$/, '?');
   var m;
   // "send a text to X ...", "send a message to X ...", "shoot a text to X ..."
   if ((m = /^(?:send|shoot|write)\s+(?:a\s+|an\s+)?(?:quick\s+)?(?:text(?: message)?|message|msg|sms|imessage|whatsapp|beeper message)\s+to\s+(.+)$/i.exec(t))) return split(m[1], aliases, true);
@@ -124,6 +135,12 @@ function ask(text, aliases) {
   if ((m = /^(?:text|message|msg|imessage|whatsapp)\s+(.+)$/i.exec(t))) return split(m[1], aliases, true);
   // "tell X ...", "let X know ..." only for aliases and people texted before, so "tell me a joke" stays with the agent.
   if ((m = /^tell\s+(.+)$/i.exec(t))) return split(m[1], aliases, false);
+  // "ask Hannah: what time is dinner", "ask my wife to grab milk", same as "tell".
+  if ((m = /^ask\s+(.+)$/i.exec(t))) {
+    var asked = split(m[1], aliases, false);
+    if (asked) asked.body = askBody(asked.body);
+    return asked;
+  }
   if ((m = /^let\s+(.+?)\s+know\s+(.*)$/i.exec(t))) {
     var known = knownPrefix(m[1] + ' x', aliases);
     if (known && key(known.spoken) === key(m[1])) return { recipient: known.contact, spoken: known.spoken, body: tidyBody(m[2]), known: true };
