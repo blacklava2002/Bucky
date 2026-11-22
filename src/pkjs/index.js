@@ -782,6 +782,75 @@ function explain(agent, res) {
   }
 }
 
+// A change from the settings page, or a backup being restored: each field is checked here.
+function applySettings(message) {
+  if (message.agent !== undefined) save(STORE.agent, typeof message.agent === 'string' ? message.agent.slice(0, 64) : '');
+  if (message.confirm !== undefined) save(STORE.confirm, !!message.confirm);
+  if (message.quickTalk !== undefined) save(STORE.quickTalk, !!message.quickTalk);
+  if (message.quietListen !== undefined) save(STORE.quietListen, !!message.quietListen);
+  if (message.prompts !== undefined) save(STORE.prompts, cleanPrompts(message.prompts));
+  if (message.weather !== undefined) save(STORE.weather, String(message.weather || ''));
+  if (message.features && typeof message.features === 'object') {
+    var next = features();
+    FEATURES.forEach(function (name) { if (message.features[name] !== undefined) next[name] = !!message.features[name]; });
+    save(STORE.features, next);
+  }
+  if (message.forgetContacts) save(STORE.knownContacts, []);
+  if (message.aliases !== undefined) save(STORE.aliases, messages.parseAliases(String(message.aliases || '').slice(0, 4000)).lines.join('\n'));
+  if (message.messenger !== undefined) {
+    save(STORE.messenger, String(message.messenger || ''));
+    refreshChatNames(false);
+  }
+  if (message.checkMessages !== undefined) save(STORE.checkMessages, !!message.checkMessages);
+  if (message.vibeAlarm !== undefined) save(STORE.vibeAlarm, VIBES.indexOf(message.vibeAlarm | 0) >= 0 ? message.vibeAlarm | 0 : 0);
+  if (message.notePlugin !== undefined) save(STORE.notePlugin, String(message.notePlugin || ''));
+  if (message.reminderPlugin !== undefined) save(STORE.reminderPlugin, String(message.reminderPlugin || ''));
+  if (message.listPlugin !== undefined) save(STORE.listPlugin, String(message.listPlugin || ''));
+  if (message.clockOn !== undefined) save(STORE.clockOn, message.clockOn === 'phone' ? 'phone' : 'watch');
+  if (message.bgColor !== undefined) save(STORE.bgColor, cleanColor(message.bgColor));
+  if (message.clockColor !== undefined) save(STORE.clockColor, cleanColor(message.clockColor));
+  if (message.vibeTimer !== undefined) save(STORE.vibeTimer, VIBES.indexOf(message.vibeTimer | 0) >= 0 ? message.vibeTimer | 0 : 0);
+  if (message.knownContacts !== undefined && Array.isArray(message.knownContacts)) {
+    save(STORE.knownContacts, messages.remember([], message.knownContacts.slice(0, 50).reverse()));
+  }
+}
+
+// Every setting, for the settings page's backup. The transcript log and the timeline pins stay out.
+var BACKUP_FIELDS = ['agent', 'confirm', 'quickTalk', 'quietListen', 'prompts', 'weather', 'features', 'aliases',
+  'knownContacts', 'messenger', 'checkMessages', 'vibeAlarm', 'vibeTimer', 'clockOn', 'notePlugin', 'reminderPlugin',
+  'listPlugin', 'bgColor', 'clockColor'];
+
+function settingsBackup() {
+  var settings = {};
+  BACKUP_FIELDS.forEach(function (name) {
+    var value = load(STORE[name], undefined);
+    if (value !== undefined && value !== null) settings[name] = value;
+  });
+  if (settings.prompts === undefined) settings.prompts = prompts();
+  return { app: brand.name, kind: 'settings', saved: new Date().toISOString(), settings: settings };
+}
+
+// Restores a backup's settings (text from the page). Returns { count } or { error }.
+function restoreSettings(text) {
+  var backup;
+  try { backup = typeof text === 'string' ? JSON.parse(text) : text; } catch (err) { return { error: 'That isn\'t a settings backup (it isn\'t JSON).' }; }
+  if (!backup || typeof backup !== 'object' || backup.kind !== 'settings' || !backup.settings || typeof backup.settings !== 'object') {
+    return { error: 'That isn\'t a settings backup.' };
+  }
+  var change = {};
+  var count = 0;
+  BACKUP_FIELDS.forEach(function (name) {
+    if (backup.settings[name] === undefined) return;
+    change[name] = backup.settings[name];
+    count++;
+  });
+  if (!count) return { error: 'That backup has no settings in it.' };
+  // The page sends prompts as lines; a backup holds them as a list.
+  if (change.prompts !== undefined && !Array.isArray(change.prompts)) change.prompts = String(change.prompts).split('\n');
+  applySettings(change);
+  return { count: count };
+}
+
 // ------------------------------------------------------------------ settings page
 
 function pageState() {
@@ -856,34 +925,30 @@ Pebble.addEventListener('configmessage', function (e) {
     return;
   }
   if (message.type === 'set') {
-    if (message.agent !== undefined) save(STORE.agent, message.agent);
-    if (message.confirm !== undefined) save(STORE.confirm, !!message.confirm);
-    if (message.quickTalk !== undefined) save(STORE.quickTalk, !!message.quickTalk);
-    if (message.quietListen !== undefined) save(STORE.quietListen, !!message.quietListen);
-    if (message.prompts !== undefined) save(STORE.prompts, cleanPrompts(message.prompts));
-    if (message.weather !== undefined) save(STORE.weather, String(message.weather || ''));
-    if (message.features && typeof message.features === 'object') {
-      var next = features();
-      FEATURES.forEach(function (name) { if (message.features[name] !== undefined) next[name] = !!message.features[name]; });
-      save(STORE.features, next);
-    }
-    if (message.forgetContacts) save(STORE.knownContacts, []);
-    if (message.aliases !== undefined) save(STORE.aliases, messages.parseAliases(String(message.aliases || '').slice(0, 4000)).lines.join('\n'));
-    if (message.messenger !== undefined) {
-      save(STORE.messenger, String(message.messenger || ''));
-      refreshChatNames(false);
-    }
-    if (message.checkMessages !== undefined) save(STORE.checkMessages, !!message.checkMessages);
-    if (message.vibeAlarm !== undefined) save(STORE.vibeAlarm, VIBES.indexOf(message.vibeAlarm | 0) >= 0 ? message.vibeAlarm | 0 : 0);
-    if (message.notePlugin !== undefined) save(STORE.notePlugin, String(message.notePlugin || ''));
-    if (message.reminderPlugin !== undefined) save(STORE.reminderPlugin, String(message.reminderPlugin || ''));
-    if (message.listPlugin !== undefined) save(STORE.listPlugin, String(message.listPlugin || ''));
-    if (message.clockOn !== undefined) save(STORE.clockOn, message.clockOn === 'phone' ? 'phone' : 'watch');
-    if (message.bgColor !== undefined) save(STORE.bgColor, cleanColor(message.bgColor));
-    if (message.clockColor !== undefined) save(STORE.clockColor, cleanColor(message.clockColor));
-    if (message.vibeTimer !== undefined) save(STORE.vibeTimer, VIBES.indexOf(message.vibeTimer | 0) >= 0 ? message.vibeTimer | 0 : 0);
+    applySettings(message);
     pushSettings();
     e.respond(pageState());
+    return;
+  }
+  if (message.type === 'exportLog') {
+    var list = transcriptLog.entries();
+    e.respond({ count: list.length, csv: transcripts.toCsv(list), json: transcripts.toJson(list) });
+    return;
+  }
+  if (message.type === 'backup') {
+    e.respond({ backup: JSON.stringify(settingsBackup(), null, 2) });
+    return;
+  }
+  if (message.type === 'restore') {
+    var restored = restoreSettings(message.backup);
+    if (restored.error) {
+      e.respond({ error: restored.error });
+      return;
+    }
+    pushSettings();
+    var page = pageState();
+    page.restored = restored.count;
+    e.respond(page);
     return;
   }
   e.respond({ error: 'unknown request' });
@@ -950,4 +1015,4 @@ Pebble.addEventListener('appmessage', function (e) {
   }
 });
 
-module.exports = { handleTranscript: handleTranscript, listAgents: listAgents, explain: explain, syncPins: syncPins, cleanPrompts: cleanPrompts, DEFAULT_PROMPTS: DEFAULT_PROMPTS, runAction: runAction, confirmMessage: confirmMessage, AGENT_RETRY: AGENT_RETRY, cleanColor: cleanColor };
+module.exports = { handleTranscript: handleTranscript, listAgents: listAgents, explain: explain, syncPins: syncPins, cleanPrompts: cleanPrompts, DEFAULT_PROMPTS: DEFAULT_PROMPTS, runAction: runAction, confirmMessage: confirmMessage, AGENT_RETRY: AGENT_RETRY, cleanColor: cleanColor, settingsBackup: settingsBackup, restoreSettings: restoreSettings };

@@ -31,7 +31,9 @@ Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, config
 const mod = require(path.resolve('src/pkjs/index.js'));
 mod.AGENT_RETRY.delaysMs = [5, 5];
 
-const said = ['set a timer for 10 minutes', 'tell Muse to pick up bread on the way home', 'ask Claude what to make for dinner'];
+const said = ['set an alarm for 7am tomorrow', 'set a reminder for 4:05 to get the kids ready',
+  'set a timer for 4:05 to take the kids home', 'what is the weather', 'set a timer for 10 minutes',
+  'tell Muse to pick up bread on the way home', 'ask Claude what to make for dinner'];
 let id = 1;
 function next() {
   if (!said.length) return finish();
@@ -44,16 +46,23 @@ function ask(data) {
 async function finish() {
   const state = await ask({ type: 'state' });
   const log = await ask({ type: 'log' });
+  const exported = await ask({ type: 'exportLog' });
+  const backup = await ask({ type: 'backup' });
   const html = fs.readFileSync('config.html', 'utf8');
   const stub = `<script>
 var STATE = ${JSON.stringify(state)}, LOG = ${JSON.stringify(log)}, handlers = {};
+var REPLIES = { log: LOG, exportLog: ${JSON.stringify(exported)}, backup: ${JSON.stringify(backup)} };
 window.Pebble = {
   addEventListener: function (n, f) { handlers[n] = f; },
-  sendMessage: function (to, m) { return Promise.resolve(m.type === 'log' ? LOG : STATE); }
+  sendMessage: function (to, m) { return Promise.resolve(REPLIES[m.type] || STATE); }
 };
 window.addEventListener('load', function () {
   handlers.ready && handlers.ready({ target: 'pkjs' });
-  setTimeout(function () { var d = document.querySelectorAll('.log details')[1]; if (d) d.open = true; }, 200);
+  setTimeout(function () {
+    var d = document.querySelectorAll('.log details')[1]; if (d) d.open = true;
+    document.getElementById('exportCsv').click();
+    document.getElementById('backup').click();
+  }, 200);
 });
 </script>`;
   process.stdout.write(html.replace('<script>', stub + '\n<script>'));

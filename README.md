@@ -18,7 +18,10 @@ your agent instead.
   minute tea timer.", ...). Pick one and Bucky acts on it as if you'd said it. Edit the list
   in settings (up to 10).
 - **Transcript log:** settings keeps the last 100 things you said and what came of them,
-  step by step, including each try at an agent and why it failed. Clear it any time.
+  step by step, including each try at an agent and why it failed, in a scrolling box. Export it
+  as JSON or CSV, or clear it any time.
+- **Backup:** settings saves every setting as a JSON file (or copies it), and restores one,
+  to keep or to move to another phone.
 - **Colors:** pick the background and the clock's color in settings, from Pebble's 64 colors.
   Other text turns black or white to stay readable. Black and white watches use black or white.
 - **Talk:** Select on the home screen (or open it from a quick-launch button, which starts
@@ -30,6 +33,8 @@ your agent instead.
   and a half", "cancel my timer", "stop the pasta timer".
 - **Alarms:** "set an alarm for 6:30 am", "wake me up at 7 tomorrow", "alarm at 18:45",
   "alarm in 20 minutes", "cancel my alarm".
+- **Did you mean:** "set a timer for 4:05 ..." is a time, not a length, so the watch asks: Up
+  sets an alarm, Down a reminder, Select listens again and Back cancels.
 - **Weekdays:** "set Doctor alarm for Wednesday at 1pm", "alarm on friday at 6:30 am". If today is
   that weekday and the time is still ahead, it rings today ("Alarm set: 1:00 PM today");
   otherwise it rings on the next one. "next wednesday" always means a week out. With no am/pm,
@@ -63,7 +68,8 @@ your agent instead.
   "Launch" with no matching app says so; "open" or "start" with no matching app goes on to timers
   or the agent, so "open the garage door" still reaches your agent.
 - **Messages:** "text Samantha I'm on my way", "send a message to Mom saying call me back", "send
-  Sam a text that I left", "tell my wife I'll be late", "let my wife know I'm on my way". Bucky
+  Sam a text that I left", "tell my wife I'll be late", "ask Hannah: what time is dinner", "let
+  my wife know I'm on my way". Bucky
   sends the words straight to a messaging plugin, not to your agent: Beeper (Index) first, then
   any other Beeper plugin, then the Chat plugin (Beeper, iMessage, WhatsApp, Telegram, SMS). Each
   only sends to chats you've allowed: in the Index app for Beeper (Index), or the plugin's own
@@ -74,7 +80,7 @@ your agent instead.
     sends to it like any other messaging plugin and picks up the names of your recent chats from
     it, so aliases and "tell X" work there too.
   - **Name aliases:** in settings, one contact per line, like `Sam = Samantha, wife`. Then
-    "text Samantha ..." and "tell my wife ..." both go to Sam. "Tell" and "let ... know" only
+    "text Samantha ..." and "tell my wife ..." both go to Sam. "Tell", "ask" and "let ... know" only
     send to names in this list and to people you've texted through Bucky before, so "tell me a
     joke" and "tell Claude ..." still go to agents. The messaging plugins don't share their
     approved contacts, so Bucky learns them from sends that worked: "text Alex ..." once, and
@@ -85,8 +91,8 @@ your agent instead.
   ...". Saved by the notes plugin picked in settings: Notes (Index), Apple Notes, Google Tasks &
   Keep, Notion, Obsidian, Roam, or any plugin with a `create_note` action.
 - **Reminders:** "remind me to call the plumber tomorrow at 9", "remind me in 20 minutes to
-  check the oven". On the watch by default: they ring like alarms (Up snoozes 5 minutes), get a
-  timeline pin, and show under Reminders in the Down menu. "What reminders do I have?" and
+  check the oven", "set a reminder for 4:05 to get the kids ready" (the next 4:05). On the
+  watch by default: they ring like alarms (Up snoozes 5 minutes), get a timeline pin, and show under Reminders in the Down menu. "What reminders do I have?" and
   "cancel the dentist reminder" work too. Up to 24 timers, alarms and reminders in all.
   Or pick a reminders plugin in settings: Reminders (Index), Google Tasks, Obsidian, Remember The
   Milk, TickTick, Todoist, Tasks.org, or any plugin with `create_reminder`. Bucky works out the
@@ -193,6 +199,7 @@ Platforms: basalt, chalk, diorite, emery, flint, gabbro (every Pebble with a mic
 | `src/c/menu.c`, `src/c/lists.c` | The Down menu, and the Bobby-style Alarms, Timers and Reminders lists |
 | `src/c/prompts.c` | The example prompts on Up |
 | `src/c/reply.c` | The reply screen: Bucky, a headline and a scrolling answer |
+| `src/c/suggest.c` | The "Did you mean..." screen: alarm, reminder or listen again |
 | `src/c/ring.c` | The ringing screen |
 | `src/pkjs/pins.js` | Turns the watch's list into timeline pins |
 | `src/pkjs/actions.js` | Plugin actions Bucky runs itself, like Find My Phone |

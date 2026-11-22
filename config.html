@@ -45,7 +45,15 @@ button { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; 
   height: 84px; border-radius: 14px; margin-top: 4px; border: 1px solid rgba(128,128,128,.35); }
 .preview .time { font-size: 38px; font-weight: 700; line-height: 1; }
 .preview .text { font-size: 13px; font-weight: 600; }
-.log { list-style: none; margin: 8px 0 0; padding: 0; }
+.logbox { height: 340px; overflow-y: auto; -webkit-overflow-scrolling: touch; resize: vertical; min-height: 160px; max-height: 80vh;
+  margin-top: 10px; padding: 0 10px; border: 1px solid rgba(128,128,128,.35); border-radius: 10px; background: rgba(128,128,128,.05); }
+.logbox.tall { height: 560px; }
+.log { list-style: none; margin: 0; padding: 0; }
+.log > li:first-child { border-top: 0; }
+.out { margin-top: 10px; }
+.out textarea { font: 12px ui-monospace, Menlo, monospace; height: 140px; }
+.msg { font-size: 13px; margin-top: 6px; }
+.msg.bad { color: #d44; }
 .log li { border-top: 1px solid rgba(128,128,128,.25); padding: 8px 0; }
 .log details > summary { list-style: none; cursor: pointer; }
 .log details > summary::-webkit-details-marker { display: none; }
@@ -158,8 +166,31 @@ button.quiet { background: transparent; color: var(--accent); border: 1px solid 
 <section class="card">
 <h2>Transcript log</h2>
 <p class="hint">The last 100 things you said and what came of them. Tap one for each step.</p>
-<div class="row"><button class="quiet" id="refreshLog">Refresh</button><button class="quiet" id="clearLog">Clear</button></div>
-<ul class="log" id="log"></ul>
+<div class="row"><button class="quiet" id="refreshLog">Refresh</button><button class="quiet" id="logSize">Taller</button><button class="quiet" id="clearLog">Clear</button></div>
+<div class="logbox" id="logbox"><ul class="log" id="log"></ul></div>
+<h3>Export</h3>
+<div class="row"><button class="quiet" id="exportJson">Export JSON</button><button class="quiet" id="exportCsv">Export CSV</button></div>
+<div class="out" id="logOut" hidden>
+<textarea id="logText" readonly></textarea>
+<div class="row"><button id="logSave">Save file</button><button class="quiet" id="logCopy">Copy</button></div>
+<div class="msg" id="logMsg"></div>
+</div>
+</section>
+
+<section class="card">
+<h2>Backup</h2>
+<p class="hint">All of these settings as a JSON file, to keep or to move to another phone. The transcript log isn't in it.</p>
+<div class="row"><button class="quiet" id="backup">Back up settings</button></div>
+<div class="out" id="backupOut" hidden>
+<textarea id="backupText" readonly></textarea>
+<div class="row"><button id="backupSave">Save file</button><button class="quiet" id="backupCopy">Copy</button></div>
+<div class="msg" id="backupMsg"></div>
+</div>
+<h3>Restore</h3>
+<p class="hint">Paste a backup here, or pick the file, then tap Restore. It replaces the settings above.</p>
+<textarea id="restoreText" rows="4" placeholder="Paste a backup"></textarea>
+<div class="row"><input type="file" id="restoreFile" accept=".json,application/json,text/plain"><button id="restore">Restore</button></div>
+<div class="msg" id="restoreMsg"></div>
 </section>
 
 <script>
@@ -472,6 +503,115 @@ el('clearLog').onclick = function () {
   Pebble.sendMessage('pkjs', { type: 'clearLog' }).then(function (r) { renderLog(r.entries); });
 };
 el('quietListen').onchange = function () { set({ quietListen: el('quietListen').checked }); };
+el('logSize').onclick = function () {
+  var tall = el('logbox').classList.toggle('tall');
+  el('logbox').style.height = '';
+  el('logSize').textContent = tall ? 'Shorter' : 'Taller';
+};
+
+// Saving a file: the share sheet where the phone offers one, else a download. Copy always works.
+function saveFile(name, type, text, msg) {
+  msg.className = 'msg';
+  try {
+    var file = typeof File === 'function' ? new File([text], name, { type: type }) : null;
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: name }).then(function () { msg.textContent = 'Shared.'; },
+        function () { msg.textContent = 'Not shared. Copy works too.'; });
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: type }));
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    msg.textContent = 'Saving ' + name + '. If nothing happens, tap Copy and paste it somewhere.';
+  } catch (err) {
+    msg.textContent = 'This phone can\'t save files from here. Tap Copy and paste it somewhere.';
+  }
+}
+function copyText(box, msg) {
+  msg.className = 'msg';
+  function fallback() {
+    box.removeAttribute('readonly');
+    box.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+    box.setAttribute('readonly', '');
+    msg.textContent = ok ? 'Copied.' : 'Select the text and copy it.';
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(box.value).then(function () { msg.textContent = 'Copied.'; }, fallback);
+  } else {
+    fallback();
+  }
+}
+function fileId() { return state && state.brand ? String(state.brand).toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'settings'; }
+function stamp() {
+  var d = new Date();
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+}
+var logFile = { name: '', type: '' };
+function exportLog(kind) {
+  Pebble.sendMessage('pkjs', { type: 'exportLog' }).then(function (r) {
+    el('logOut').hidden = false;
+    el('logText').value = kind === 'csv' ? r.csv : r.json;
+    logFile = kind === 'csv' ? { name: fileId() + '-log-' + stamp() + '.csv', type: 'text/csv' }
+      : { name: fileId() + '-log-' + stamp() + '.json', type: 'application/json' };
+    el('logMsg').className = 'msg';
+    el('logMsg').textContent = r.count + (r.count === 1 ? ' entry.' : ' entries.');
+  });
+}
+el('exportJson').onclick = function () { exportLog('json'); };
+el('exportCsv').onclick = function () { exportLog('csv'); };
+el('logSave').onclick = function () { saveFile(logFile.name, logFile.type, el('logText').value, el('logMsg')); };
+el('logCopy').onclick = function () { copyText(el('logText'), el('logMsg')); };
+el('backup').onclick = function () {
+  Pebble.sendMessage('pkjs', { type: 'backup' }).then(function (r) {
+    el('backupOut').hidden = false;
+    el('backupText').value = r.backup;
+    el('backupMsg').className = 'msg';
+    el('backupMsg').textContent = '';
+  });
+};
+el('backupSave').onclick = function () {
+  saveFile(fileId() + '-settings-' + stamp() + '.json', 'application/json', el('backupText').value, el('backupMsg'));
+};
+el('backupCopy').onclick = function () { copyText(el('backupText'), el('backupMsg')); };
+el('restoreFile').onchange = function () {
+  var f = el('restoreFile').files && el('restoreFile').files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function () { el('restoreText').value = String(reader.result || ''); };
+  reader.readAsText(f);
+};
+// Two taps, since it replaces every setting.
+el('restore').onclick = function () {
+  var b = el('restore');
+  var msg = el('restoreMsg');
+  if (!el('restoreText').value.trim()) {
+    msg.className = 'msg bad';
+    msg.textContent = 'Paste a backup first.';
+    return;
+  }
+  if (b.textContent !== 'Tap again to restore') {
+    b.textContent = 'Tap again to restore';
+    setTimeout(function () { b.textContent = 'Restore'; }, 4000);
+    return;
+  }
+  b.textContent = 'Restore';
+  Pebble.sendMessage('pkjs', { type: 'restore', backup: el('restoreText').value }).then(function (r) {
+    if (r.error) {
+      msg.className = 'msg bad';
+      msg.textContent = r.error;
+      return;
+    }
+    render(r);
+    msg.className = 'msg';
+    msg.textContent = 'Restored ' + r.restored + ' settings.';
+  });
+};
 
 Pebble.addEventListener('message', function (e) {
   if (e.data && e.data.type === 'state') render(e.data);
