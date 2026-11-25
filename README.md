@@ -177,6 +177,12 @@ git commit -am "0.2.1" && git push
 
 Pushes that don't change the version are still built and tested, but publish nothing.
 
+Once the app has a listing on the Pebble app store, each new release is also added to that
+listing. The first upload is done by hand in the developer dashboard; until then the store
+step skips. It needs the repo secret `PEBBLE_APPSTORE_REFRESH_TOKEN`, the `refresh_token` from
+`oauth_firebase/firebase_oauth_storage.json` in the Pebble SDK folder after `pebble login`.
+Pushes to other branches do a dry run of the same sign-in and lookup.
+
 To build locally you need Pebble SDK 4.44+ / pebble-tool 5.1+ (plugin API).
 
 ```sh

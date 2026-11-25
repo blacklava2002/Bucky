@@ -121,6 +121,7 @@ jobs:
       # A release per version: bump "version" in package.json and push to main.
       # A push that doesn't change the version still builds and tests, but publishes nothing.
       - name: Publish a release for a new version
+        id: release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -144,3 +145,72 @@ jobs:
           cat notes.md
           gh release create "v$VERSION" "$PBW" --target "$GITHUB_SHA" \
             --title "$NAME $VERSION" --notes-file notes.md
+          # The store shows plain text: the same notes without the Markdown.
+          sed -E 's/^## //; s/\*\*//g' notes.md > store-notes.txt
+          echo "created=true" >> "$GITHUB_OUTPUT"
+      # Adds the new version to the app's existing store listing. It never creates a listing:
+      # the first upload is done by hand in the developer dashboard (as Unlisted), and until
+      # then this step finds no app for this UUID and skips. Needs the repo secret
+      # PEBBLE_APPSTORE_REFRESH_TOKEN, the refresh_token from `pebble login`'s
+      # oauth_firebase/firebase_oauth_storage.json. A failed upload fails the run; the GitHub
+      # release above is already out either way, and the .pbw can be uploaded by hand.
+      # Pushes to other branches do a dry run: the same sign-in and lookup, no upload.
+      - name: Upload the new version to the Pebble app store
+        if: steps.release.outputs.created == 'true' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
+        env:
+          DRY_RUN: ${{ steps.release.outputs.created != 'true' }}
+          REFRESH_TOKEN: ${{ secrets.PEBBLE_APPSTORE_REFRESH_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PBW: ${{ steps.version.outputs.pbw }}
+        run: |
+          set -euo pipefail
+          if [ -z "$REFRESH_TOKEN" ]; then
+            echo "::notice::No PEBBLE_APPSTORE_REFRESH_TOKEN secret, so the store upload is skipped."
+            exit 0
+          fi
+          # Same endpoints and key pebble-tool uses (pebble_tool.firebase_account, commands/publish.py).
+          TOOL_PY="$(pipx environment --value PIPX_LOCAL_VENVS)/pebble-tool/bin/python"
+          eval "$("$TOOL_PY" -c 'from pebble_tool import firebase_account as f; print("API_KEY=" + f.DEFAULT_FIREBASE_API_KEY); print("API=" + f.DEFAULT_APPSTORE_API_BASE)')"
+          : "${API_KEY:?could not read the store settings from pebble-tool}" "${API:?}"
+          # call METHOD URL [curl args...]: prints the body; on an HTTP error it says why and returns 1.
+          call() {
+            local method=$1 url=$2; shift 2
+            local where=${url%%\?*} code
+            code=$(curl -sS -o resp.json -w '%{http_code}' -X "$method" "$@" "$url") || { echo "::error::$method $where didn't connect" >&2; return 1; }
+            if [ "$code" -ge 400 ]; then
+              echo "::error::$method $where answered $code: $(jq -r '(.error // .message // .code // .) | tostring' resp.json 2>/dev/null | head -c 500)" >&2
+              return 1
+            fi
+            cat resp.json
+          }
+          ID_TOKEN=$(call POST "https://securetoken.googleapis.com/v1/token?key=$API_KEY" \
+            --data-urlencode grant_type=refresh_token --data-urlencode "refresh_token=$REFRESH_TOKEN" | jq -r '.id_token // empty') \
+            || { echo "::error::The refresh token was refused. Run pebble login again and update the PEBBLE_APPSTORE_REFRESH_TOKEN secret."; exit 1; }
+          [ -n "$ID_TOKEN" ] || { echo "::error::No id_token came back for the refresh token."; exit 1; }
+          echo "::add-mask::$ID_TOKEN"
+          UUID=$(node -p "require('./package.json').pebble.uuid.toLowerCase()")
+          if ! call GET "$API/api/v1/developer/me" -H "Authorization: Bearer $ID_TOKEN" > me.json 2> me.err; then
+            if [ "$(jq -r '.code // empty' resp.json 2>/dev/null)" = "DEVELOPER_NOT_LINKED" ]; then
+              echo "::notice::This Pebble account has no developer account yet, so the store upload is skipped."
+              exit 0
+            fi
+            cat me.err >&2
+            exit 1
+          fi
+          rm -f me.err
+          APP_ID=$(jq -r --arg u "$UUID" '(.app_lookup.by_app_uuid // {}) | to_entries[] | select((.key | ascii_downcase) == $u) | .value' me.json | head -n1)
+          rm -f me.json
+          if [ -z "$APP_ID" ]; then
+            echo "::notice::No store listing for this app yet, so the store upload is skipped. Do the first upload by hand in the developer dashboard."
+            exit 0
+          fi
+          if [ "$DRY_RUN" = true ]; then
+            echo "Dry run: signed in and found the store listing; a release would add $VERSION to it."
+            exit 0
+          fi
+          echo "Adding $VERSION to store app $APP_ID"
+          call POST "$API/api/dashboard/apps/$APP_ID/releases" -H "Authorization: Bearer $ID_TOKEN" \
+            -F "version=$VERSION" -F "releaseNotes=<store-notes.txt" -F isPublished=true \
+            -F replaceScreenshots=false -F "pbwFile=@$PBW;type=application/octet-stream" > /dev/null
+          rm -f resp.json
+          echo "Uploaded $PBW to the Pebble app store."
