@@ -23,6 +23,10 @@ static int32_t s_confirm_id;
 static char s_said[BODY_LEN - 80];
 static int s_left;
 static AppTimer *s_tick;
+// The count, pinned to the bottom of the screen so it shows however far you've scrolled.
+static TextLayer *s_count;
+static char s_count_text[24];
+#define COUNT_H 26
 
 static GFont prv_body_font(void) {
   return fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
@@ -54,17 +58,14 @@ static void prv_stop_count(void) {
   s_tick = NULL;
 }
 
-// The words under the headline: what's being sent, then the count or the buttons.
+// The words under the headline: what's being sent and the buttons. The count has its own strip.
 static void prv_check_body(void) {
   const char *how = s_check == CheckTranscript ? "Select sends, Back drops it." : "Select sends, Back cancels.";
-  if (s_tick) {
-    snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\nSending in %ds.\n%s", s_said, s_left, how);
-  } else {
-    snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\n%s", s_said, how);
-  }
-  if (s_body) {
-    text_layer_set_text(s_body, s_body_text);
-    layer_mark_dirty(text_layer_get_layer(s_body));
+  snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\n%s", s_said, how);
+  snprintf(s_count_text, sizeof(s_count_text), "Sending in %ds", s_left);
+  if (s_count) {
+    layer_set_hidden(text_layer_get_layer(s_count), !s_tick);
+    text_layer_set_text(s_count, s_count_text);
   }
 }
 
@@ -203,12 +204,27 @@ static void prv_load(Window *window) {
 
   int content_h = body_box.origin.y + body_box.size.h + PBL_IF_ROUND_ELSE(30, 8);
   if (content_h < bounds.size.h) content_h = bounds.size.h;
+  if (s_check) content_h += COUNT_H;
   scroll_layer_set_content_size(s_scroll, GSize(width, content_h));
   layer_add_child(root, scroll_layer_get_layer(s_scroll));
+
+  if (s_check) {
+    int count_y = bounds.size.h - COUNT_H - PBL_IF_ROUND_ELSE(12, 0);
+    s_count = text_layer_create(GRect(0, count_y, width, COUNT_H));
+    text_layer_set_font(s_count, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+    text_layer_set_text_alignment(s_count, GTextAlignmentCenter);
+    text_layer_set_background_color(s_count, theme_accent());
+    text_layer_set_text_color(s_count, theme_bg());
+    text_layer_set_text(s_count, s_count_text);
+    layer_set_hidden(text_layer_get_layer(s_count), !s_tick);
+    layer_add_child(root, text_layer_get_layer(s_count));
+  }
 }
 
 static void prv_unload(Window *window) {
   prv_stop_count();
+  if (s_count) text_layer_destroy(s_count);
+  s_count = NULL;
   text_layer_destroy(s_body);
   text_layer_destroy(s_headline);
   bitmap_layer_destroy(s_sprite);
