@@ -38,14 +38,14 @@ jobs:
           } catch (e) { /* no storage */ }
           JS
           (cd "$DEMO" && pebble build)
-          for P in diorite flint; do
+          for P in flint diorite; do
             E="--emulator $P"
-            press() { pebble emu-button click "$@" $E; sleep 1.5; }
+            press() { pebble emu-button click "$@" $E || { sleep 5; pebble emu-button click "$@" $E; } || true; sleep 1.5; }
             shoot() { pebble screenshot $E --no-open "$ROOT/shots/$P-$1.png" || true; }
             pick() { press up; for i in $(seq 1 $1); do press down; done; press select; sleep 4; }
             cd "$DEMO"; pebble install $E || { cd "$ROOT"; continue; }
             pebble emu-time-format --format 12h $E || true
-            sleep 6
+            sleep 10
             shoot home
             press up; shoot prompts
             press select; sleep 4; shoot reply
@@ -66,4 +66,6 @@ jobs:
             pebble kill || true
             cd "$ROOT"
           done
-          for f in shots/*.png; do echo "SHOT $f"; base64 -w0 "$f"; echo; echo "END SHOT"; done
+      - name: Print shots
+        if: always()
+        run: for f in shots/*.png; do echo "SHOT $f"; base64 -w0 "$f"; echo; echo "END SHOT"; done
