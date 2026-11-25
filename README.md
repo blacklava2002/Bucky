@@ -68,7 +68,7 @@ your agent instead.
   "Launch" with no matching app says so; "open" or "start" with no matching app goes on to timers
   or the agent, so "open the garage door" still reaches your agent.
 - **Messages:** "text Samantha I'm on my way", "send a message to Mom saying call me back", "send
-  Sam a text that I left", "tell my wife I'll be late", "ask Hannah: what time is dinner", "let
+  Sam a text that I left", "tell my wife I'll be late", "ask Alex: what time is dinner", "let
   my wife know I'm on my way". Bucky
   sends the words straight to a messaging plugin, not to your agent: Beeper (Index) first, then
   any other Beeper plugin, then the Chat plugin (Beeper, iMessage, WhatsApp, Telegram, SMS). Each

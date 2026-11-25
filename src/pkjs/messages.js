@@ -135,7 +135,7 @@ function ask(text, aliases) {
   if ((m = /^(?:text|message|msg|imessage|whatsapp)\s+(.+)$/i.exec(t))) return split(m[1], aliases, true);
   // "tell X ...", "let X know ..." only for aliases and people texted before, so "tell me a joke" stays with the agent.
   if ((m = /^tell\s+(.+)$/i.exec(t))) return split(m[1], aliases, false);
-  // "ask Hannah: what time is dinner", "ask my wife to grab milk", same as "tell".
+  // "ask Alex: what time is dinner", "ask my wife to grab milk", same as "tell".
   if ((m = /^ask\s+(.+)$/i.exec(t))) {
     var asked = split(m[1], aliases, false);
     if (asked) asked.body = askBody(asked.body);
