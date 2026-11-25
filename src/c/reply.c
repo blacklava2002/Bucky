@@ -3,7 +3,8 @@
 // weather, music and battery today, plugin and agent replies later. A message to send uses it
 // too, asking first: Select sends it, Back drops it. So does what you just said, when
 // "Confirm transcription" is on. Both check screens count down and send by themselves
-// (settings_auto_send()); Up, Down or Back stops the count.
+// (settings_auto_send()); Up, Down or Back stops the count. Check screens leave the sprite out
+// and shrink the headline, so what you said fills the screen.
 #include "app.h"
 
 #define HEADLINE_LEN 64
@@ -143,13 +144,17 @@ static void prv_load(Window *window) {
   scroll_layer_set_paging(s_scroll, true);
 #endif
 
-  GBitmap *talk = sprite_frame(SpriteTalk);
-  GSize size = gbitmap_get_bounds(talk).size;
-  int top = PBL_IF_ROUND_ELSE(12, 4);
+  // A check screen is about reading what you said, so it drops the sprite and keeps the
+  // headline to one small line at the top; the words get the rest of the screen.
+  bool check = s_check != CheckNone;
+  GBitmap *talk = check ? NULL : sprite_frame(SpriteTalk);
+  GSize size = talk ? gbitmap_get_bounds(talk).size : GSize(0, 0);
+  int top = check ? PBL_IF_ROUND_ELSE(16, 0) : PBL_IF_ROUND_ELSE(12, 4);
   GFont head_font = fonts_get_system_font(wide ? FONT_KEY_GOTHIC_28_BOLD : FONT_KEY_GOTHIC_24_BOLD);
   // Wide screens put the headline beside the sprite when every word fits there; otherwise, and on
   // narrow and round screens, it goes under it.
-  bool stacked = PBL_IF_ROUND_ELSE(true, !wide);
+  bool stacked = PBL_IF_ROUND_ELSE(true, !wide) || check;
+  if (check) head_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
   if (!stacked) {
     int column = width - size.w - 2 - PAD;
     if (prv_widest_word(s_headline_text, head_font) > column) {
@@ -157,17 +162,19 @@ static void prv_load(Window *window) {
       stacked = prv_widest_word(s_headline_text, head_font) > column;
     }
   }
-  int sprite_x = stacked ? (width - size.w) / 2 : 0;
-  s_sprite = bitmap_layer_create(GRect(sprite_x, top, size.w, size.h));
-  bitmap_layer_set_bitmap(s_sprite, talk);
-  bitmap_layer_set_compositing_mode(s_sprite, GCompOpSet);
-  scroll_layer_add_child(s_scroll, bitmap_layer_get_layer(s_sprite));
+  if (talk) {
+    int sprite_x = stacked ? (width - size.w) / 2 : 0;
+    s_sprite = bitmap_layer_create(GRect(sprite_x, top, size.w, size.h));
+    bitmap_layer_set_bitmap(s_sprite, talk);
+    bitmap_layer_set_compositing_mode(s_sprite, GCompOpSet);
+    scroll_layer_add_child(s_scroll, bitmap_layer_get_layer(s_sprite));
+  }
 
   GRect head_box;
   GTextAlignment head_align;
   if (stacked) {
     head_box = GRect(PAD, top + size.h, width - 2 * PAD, 200);
-    head_align = GTextAlignmentCenter;
+    head_align = check ? PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft) : GTextAlignmentCenter;
   } else {
     int head_x = size.w + 2;
     head_box = GRect(head_x, top, width - head_x - PAD, 200);
@@ -177,7 +184,7 @@ static void prv_load(Window *window) {
                                                      GTextOverflowModeWordWrap, head_align);
   // Centre a short headline on the sprite's height.
   if (!stacked && head.h < size.h) head_box.origin.y = top + (size.h - head.h) / 2 - 4;
-  head_box.size.h = head.h + 6;
+  head_box.size.h = head.h + (check ? 2 : 6);
   s_headline = text_layer_create(head_box);
   text_layer_set_text(s_headline, s_headline_text);
   text_layer_set_font(s_headline, head_font);
@@ -227,7 +234,8 @@ static void prv_unload(Window *window) {
   s_count = NULL;
   text_layer_destroy(s_body);
   text_layer_destroy(s_headline);
-  bitmap_layer_destroy(s_sprite);
+  if (s_sprite) bitmap_layer_destroy(s_sprite);
+  s_sprite = NULL;
   scroll_layer_destroy(s_scroll);
   window_destroy(s_window);
   s_window = NULL;
