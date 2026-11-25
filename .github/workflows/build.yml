@@ -80,7 +80,7 @@ jobs:
             press select; sleep 4; shoot message-sent
             press up; for i in 1 2 3 4 5 6 7 8 9; do press down; done; press select; sleep 4; shoot did-you-mean
             press up; sleep 4; shoot did-you-mean-alarm
-            press back; sleep 2
+            pebble install $E > /dev/null 2>&1; sleep 6
             (timeout 30 pebble transcribe "Tell Sam I'm running about ten minutes late, traffic is backed up past the circle, so start without me and save me a seat near the front" $E > /dev/null 2>&1 &)
             sleep 3; press select; sleep 8; shoot transcript-check
             press down; shoot transcript-check-stopped
