@@ -34,11 +34,14 @@ var STORE = { agent: 'agent', confirm: 'confirm', quickTalk: 'quickTalk', pins: 
   vibeAlarm: 'vibeAlarm', vibeTimer: 'vibeTimer', clockOn: 'clockOn',
   notePlugin: 'notePlugin', reminderPlugin: 'reminderPlugin', listPlugin: 'listPlugin', knownContacts: 'knownContacts',
   chatNames: 'chatNames', quietListen: 'quietListen',
-  bgColor: 'bgColor', clockColor: 'clockColor' };
+  bgColor: 'bgColor', clockColor: 'clockColor', autoSend: 'autoSend' };
 // What the app does itself. Turn one off in settings and those words go to the agent instead.
 var FEATURES = ['weather', 'battery', 'findPhone', 'music', 'apps', 'messages', 'notes', 'reminders', 'lists'];
 // Ringing patterns, same numbers as ring.c: 0 strong, 1 gentle, 2 a few nudges, 3 silent.
 var VIBES = [0, 1, 2, 3];
+// How long the check screens wait before sending by themselves, in seconds; 0 is never.
+var AUTO_SEND = [0, 5, 10, 15, 30, 60];
+var AUTO_SEND_DEFAULT = 15;
 // The Up button's example prompts. Editable in settings; the watch has the same defaults.
 var DEFAULT_PROMPTS = [
   "What's the current weather?",
@@ -279,6 +282,11 @@ function colorWatch() {
   return true;
 }
 
+function autoSend() {
+  var seconds = load(STORE.autoSend, AUTO_SEND_DEFAULT);
+  return AUTO_SEND.indexOf(seconds) >= 0 ? seconds : AUTO_SEND_DEFAULT;
+}
+
 function pushSettings() {
   var agent = selectedAgent(listAgents());
   send({
@@ -286,6 +294,7 @@ function pushSettings() {
     CONFIRM: load(STORE.confirm, false) ? 1 : 0,
     QUICK_TALK: load(STORE.quickTalk, true) ? 1 : 0,
     QUIET_LISTEN: load(STORE.quietListen, false) ? 1 : 0,
+    AUTO_SEND: autoSend(),
     VIBE_ALARM: vibe(STORE.vibeAlarm),
     VIBE_TIMER: vibe(STORE.vibeTimer),
     BG_COLOR: cleanColor(load(STORE.bgColor, 0)),
@@ -809,6 +818,7 @@ function applySettings(message) {
   if (message.clockOn !== undefined) save(STORE.clockOn, message.clockOn === 'phone' ? 'phone' : 'watch');
   if (message.bgColor !== undefined) save(STORE.bgColor, cleanColor(message.bgColor));
   if (message.clockColor !== undefined) save(STORE.clockColor, cleanColor(message.clockColor));
+  if (message.autoSend !== undefined) save(STORE.autoSend, AUTO_SEND.indexOf(message.autoSend | 0) >= 0 ? message.autoSend | 0 : AUTO_SEND_DEFAULT);
   if (message.vibeTimer !== undefined) save(STORE.vibeTimer, VIBES.indexOf(message.vibeTimer | 0) >= 0 ? message.vibeTimer | 0 : 0);
   if (message.knownContacts !== undefined && Array.isArray(message.knownContacts)) {
     save(STORE.knownContacts, messages.remember([], message.knownContacts.slice(0, 50).reverse()));
@@ -818,7 +828,7 @@ function applySettings(message) {
 // Every setting, for the settings page's backup. The transcript log and the timeline pins stay out.
 var BACKUP_FIELDS = ['agent', 'confirm', 'quickTalk', 'quietListen', 'prompts', 'weather', 'features', 'aliases',
   'knownContacts', 'messenger', 'checkMessages', 'vibeAlarm', 'vibeTimer', 'clockOn', 'notePlugin', 'reminderPlugin',
-  'listPlugin', 'bgColor', 'clockColor'];
+  'listPlugin', 'bgColor', 'clockColor', 'autoSend'];
 
 function settingsBackup() {
   var settings = {};
@@ -866,6 +876,7 @@ function pageState() {
     confirm: !!load(STORE.confirm, false),
     quickTalk: !!load(STORE.quickTalk, true),
     quietListen: !!load(STORE.quietListen, false),
+    autoSend: autoSend(),
     quietAvailable: !!(Pebble.invokeAction && Pebble.subscribeToSource),
     prompts: prompts(),
     defaultPrompts: DEFAULT_PROMPTS,

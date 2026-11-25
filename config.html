@@ -85,6 +85,16 @@ button.quiet { background: transparent; color: var(--accent); border: 1px solid 
 <h2>Listening</h2>
 <label class="toggle"><input type="checkbox" id="confirm">
   <span>Confirm transcription<span class="hint">Shows what you said before <span class="brand">it</span> acts.</span></span></label>
+<label class="row" for="autoSend"><span class="label">Send by itself after</span></label>
+<select id="autoSend">
+<option value="0">Never</option>
+<option value="5">5 seconds</option>
+<option value="10">10 seconds</option>
+<option value="15">15 seconds</option>
+<option value="30">30 seconds</option>
+<option value="60">1 minute</option>
+</select>
+<p class="hint">For the transcript check and the message check.<br>Up, Down or Back stops the count.</p>
 <label class="toggle"><input type="checkbox" id="quickTalk">
   <span>Listen right away from quick launch</span></label>
 <label class="toggle"><input type="checkbox" id="quietListen">
@@ -234,6 +244,7 @@ function render(s) {
   if (document.activeElement !== el('prompts')) el('prompts').value = (s.prompts || []).join('\n');
   el('confirm').checked = !!s.confirm;
   el('quickTalk').checked = !!s.quickTalk;
+  el('autoSend').value = String(s.autoSend === undefined ? 15 : s.autoSend);
   el('quietListen').checked = !!s.quietListen;
   el('quietListen').disabled = !s.quietAvailable && !s.quietListen;
   el('quietMissing').hidden = !!s.quietAvailable;
@@ -487,6 +498,7 @@ el('listPlugin').onchange = function () { set({ listPlugin: el('listPlugin').val
 el('clockOn').onchange = function () { set({ clockOn: el('clockOn').value }); };
 el('vibeAlarm').onchange = function () { set({ vibeAlarm: Number(el('vibeAlarm').value) }); };
 el('vibeTimer').onchange = function () { set({ vibeTimer: Number(el('vibeTimer').value) }); };
+el('autoSend').onchange = function () { set({ autoSend: Number(el('autoSend').value) }); };
 el('quickTalk').onchange = function () { set({ quickTalk: el('quickTalk').checked }); };
 el('bgDefault').onclick = function () { set({ bgColor: 0 }); };
 el('clockDefault').onclick = function () { set({ clockColor: 0 }); };

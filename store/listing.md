@@ -93,7 +93,7 @@ signed in to there, Bucky can use.
   Change the list in settings.
 - Pick your own background and clock colors from Pebble's 64. Other text stays readable.
 - Open Bucky from a quick-launch button and it starts listening straight away.
-- Optionally check the transcript before Bucky acts.
+- Optionally check the transcript before Bucky acts. It sends by itself after 15 seconds (you pick the wait), and a button press stops the count.
 - Optionally turn on Quiet Time while Bucky listens, so a notification can't cut you off mid-sentence.
   Your Quiet Time settings go back the way they were afterwards.
 - Settings keeps a log of the last 100 things you said and what Bucky did with each, and exports it as JSON or CSV.
