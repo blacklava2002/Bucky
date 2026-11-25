@@ -3,7 +3,7 @@
   "description": "A plugin-powered voice assistant for Pebble: talk to set timers and alarms, ask the weather, send texts, or hand off to Claude, Muse, Grok or ChatGPT.",
   "author": "Blacklava2002",
   "license": "MIT",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "homepage": "https://github.com/blacklava2002/Bucky#readme",
   "repository": {
     "type": "git",
@@ -175,6 +175,11 @@
           "type": "bitmap",
           "name": "ACTION_REMINDER",
           "file": "images/action_reminder.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "ACTION_SEND",
+          "file": "images/action_send.png"
         },
         {
           "type": "bitmap",

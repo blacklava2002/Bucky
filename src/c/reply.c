@@ -3,8 +3,8 @@
 // weather, music and battery today, plugin and agent replies later. A message to send uses it
 // too, asking first: Select sends it, Back drops it. So does what you just said, when
 // "Confirm transcription" is on. Both check screens count down and send by themselves
-// (settings_auto_send()); Up, Down or Back stops the count. Check screens leave the sprite out
-// and shrink the headline, so what you said fills the screen.
+// (settings_auto_send()); Up, Down or Back stops the count. Check screens leave the sprite out,
+// keep the headline to one line and put a send icon by Select, so what you said fills the screen.
 #include "app.h"
 
 #define HEADLINE_LEN 64
@@ -26,6 +26,9 @@ static int s_left;
 static AppTimer *s_tick;
 // The count, pinned to the bottom of the screen so it shows however far you've scrolled.
 static TextLayer *s_count;
+// Check screens show the same black action bar as home, with a send icon by Select.
+static ActionBarLayer *s_bar;
+static GBitmap *s_icon_send;
 static char s_count_text[24];
 #define COUNT_H 26
 
@@ -61,8 +64,7 @@ static void prv_stop_count(void) {
 
 // The words under the headline: what's being sent and the buttons. The count has its own strip.
 static void prv_check_body(void) {
-  const char *how = s_check == CheckTranscript ? "Select sends, Back drops it." : "Select sends, Back cancels.";
-  snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\n%s", s_said, how);
+  snprintf(s_body_text, sizeof(s_body_text), "\"%s\"", s_said);
   snprintf(s_count_text, sizeof(s_count_text), "Sending in %ds", s_left);
   if (s_count) {
     layer_set_hidden(text_layer_get_layer(s_count), !s_tick);
@@ -133,12 +135,22 @@ static void prv_click_config(void *ctx) {
 static void prv_load(Window *window) {
   Layer *root = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(root);
-  int width = bounds.size.w;
-  bool wide = width >= 200;
+  bool check = s_check != CheckNone;
+  // A check leaves room on the right for the action bar.
+  int width = bounds.size.w - (check ? ACTION_BAR_WIDTH : 0);
+  bool wide = bounds.size.w >= 200;
 
-  s_scroll = scroll_layer_create(bounds);
-  scroll_layer_set_click_config_onto_window(s_scroll, window);
-  scroll_layer_set_callbacks(s_scroll, (ScrollLayerCallbacks){ .click_config_provider = prv_click_config });
+  s_scroll = scroll_layer_create(GRect(0, 0, width, bounds.size.h));
+  if (check) {
+    s_icon_send = gbitmap_create_with_resource(RESOURCE_ID_ACTION_SEND);
+    s_bar = action_bar_layer_create();
+    action_bar_layer_set_background_color(s_bar, GColorBlack);
+    action_bar_layer_set_icon(s_bar, BUTTON_ID_SELECT, s_icon_send);
+    action_bar_layer_set_click_config_provider(s_bar, prv_click_config);
+  } else {
+    scroll_layer_set_click_config_onto_window(s_scroll, window);
+    scroll_layer_set_callbacks(s_scroll, (ScrollLayerCallbacks){ .click_config_provider = prv_click_config });
+  }
   scroll_layer_set_shadow_hidden(s_scroll, true);
 #if defined(PBL_ROUND)
   // Paging jumps a whole screen, past the end of a short check; checks scroll a line at a time.
@@ -146,8 +158,7 @@ static void prv_load(Window *window) {
 #endif
 
   // A check screen is about reading what you said, so it drops the sprite and keeps the
-  // headline to one small line at the top; the words get the rest of the screen.
-  bool check = s_check != CheckNone;
+  // headline to one line at the top; the words get the rest of the screen.
   GBitmap *talk = check ? NULL : sprite_frame(SpriteTalk);
   GSize size = talk ? gbitmap_get_bounds(talk).size : GSize(0, 0);
   int top = check ? PBL_IF_ROUND_ELSE(16, 0) : PBL_IF_ROUND_ELSE(12, 4);
@@ -155,7 +166,7 @@ static void prv_load(Window *window) {
   // Wide screens put the headline beside the sprite when every word fits there; otherwise, and on
   // narrow and round screens, it goes under it.
   bool stacked = PBL_IF_ROUND_ELSE(true, !wide) || check;
-  if (check) head_font = fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD);
+  if (check) head_font = fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
   if (!stacked) {
     int column = width - size.w - 2 - PAD;
     if (prv_widest_word(s_headline_text, head_font) > column) {
@@ -174,7 +185,7 @@ static void prv_load(Window *window) {
   GRect head_box;
   GTextAlignment head_align;
   if (stacked) {
-    head_box = GRect(PAD, top + size.h, width - 2 * PAD, 200);
+    head_box = GRect(PAD, top + size.h, width - PAD - (check ? PBL_IF_ROUND_ELSE(2, PAD) : PAD), 200);
     head_align = check ? PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft) : GTextAlignmentCenter;
   } else {
     int head_x = size.w + 2;
@@ -197,7 +208,7 @@ static void prv_load(Window *window) {
   int body_top = head_box.origin.y + head_box.size.h + 2;
   if (!stacked && body_top < top + size.h + 4) body_top = top + size.h + 4;
   GFont body_font = prv_body_font();
-  GRect body_box = GRect(PAD, body_top, width - 2 * PAD, 2000);
+  GRect body_box = GRect(PAD, body_top, width - PAD - (check ? PBL_IF_ROUND_ELSE(2, PAD) : PAD), 2000);
   GSize body = graphics_text_layout_get_content_size(s_body_text, body_font, body_box,
                                                      GTextOverflowModeWordWrap,
                                                      PBL_IF_ROUND_ELSE(GTextAlignmentCenter, GTextAlignmentLeft));
@@ -227,6 +238,7 @@ static void prv_load(Window *window) {
     text_layer_set_text(s_count, s_count_text);
     layer_set_hidden(text_layer_get_layer(s_count), !s_tick);
     layer_add_child(root, text_layer_get_layer(s_count));
+    action_bar_layer_add_to_window(s_bar, window);
   }
 }
 
@@ -238,6 +250,10 @@ static void prv_unload(Window *window) {
   text_layer_destroy(s_headline);
   if (s_sprite) bitmap_layer_destroy(s_sprite);
   s_sprite = NULL;
+  if (s_bar) action_bar_layer_destroy(s_bar);
+  s_bar = NULL;
+  if (s_icon_send) gbitmap_destroy(s_icon_send);
+  s_icon_send = NULL;
   scroll_layer_destroy(s_scroll);
   window_destroy(s_window);
   s_window = NULL;
