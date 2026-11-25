@@ -178,6 +178,11 @@
         },
         {
           "type": "bitmap",
+          "name": "ACTION_SEND",
+          "file": "images/action_send.png"
+        },
+        {
+          "type": "bitmap",
           "name": "MENU_ALARMS",
           "file": "images/menu_alarms.png"
         },
