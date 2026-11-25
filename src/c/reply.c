@@ -209,9 +209,10 @@ static void prv_load(Window *window) {
   text_layer_set_text_color(s_body, theme_text());
   scroll_layer_add_child(s_scroll, text_layer_get_layer(s_body));
 
-  int content_h = body_box.origin.y + body_box.size.h + PBL_IF_ROUND_ELSE(30, 8);
+  // Room under the words for the count strip, so the last line can scroll clear of it; a check
+  // that already fits doesn't scroll at all.
+  int content_h = body_box.origin.y + body_box.size.h + PBL_IF_ROUND_ELSE(30, 8) + (s_check ? COUNT_H : 0);
   if (content_h < bounds.size.h) content_h = bounds.size.h;
-  if (s_check) content_h += COUNT_H;
   scroll_layer_set_content_size(s_scroll, GSize(width, content_h));
   layer_add_child(root, scroll_layer_get_layer(s_scroll));
 
