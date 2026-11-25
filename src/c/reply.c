@@ -141,7 +141,8 @@ static void prv_load(Window *window) {
   scroll_layer_set_callbacks(s_scroll, (ScrollLayerCallbacks){ .click_config_provider = prv_click_config });
   scroll_layer_set_shadow_hidden(s_scroll, true);
 #if defined(PBL_ROUND)
-  scroll_layer_set_paging(s_scroll, true);
+  // Paging jumps a whole screen, past the end of a short check; checks scroll a line at a time.
+  scroll_layer_set_paging(s_scroll, s_check == CheckNone);
 #endif
 
   // A check screen is about reading what you said, so it drops the sprite and keeps the
