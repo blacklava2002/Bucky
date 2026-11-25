@@ -53,6 +53,8 @@ jobs:
           mkdir -p shots
           # A throwaway copy with a fake weather reading and messaging plugin, so the reply and send screens can be shown.
           ROOT=$PWD; DEMO=$(mktemp -d); cp -r . "$DEMO"; cat .github/emulator/demo-weather.js .github/emulator/demo-plugins.js >> "$DEMO/src/pkjs/index.js"
+          # "Confirm transcription" on, so a dictated line stops on the check screen.
+          { echo "localStorage.setItem('confirm','true');"; cat "$DEMO/src/pkjs/index.js"; } > "$DEMO/index.tmp" && mv "$DEMO/index.tmp" "$DEMO/src/pkjs/index.js"
           (cd "$DEMO" && pebble build > /dev/null) || DEMO=$ROOT
           for P in emery basalt chalk; do
             E="--emulator $P"
@@ -78,6 +80,11 @@ jobs:
             press select; sleep 4; shoot message-sent
             press up; for i in 1 2 3 4 5 6 7 8 9; do press down; done; press select; sleep 4; shoot did-you-mean
             press up; sleep 4; shoot did-you-mean-alarm
+            press back; sleep 2
+            (timeout 30 pebble transcribe "Tell Sam I'm running about ten minutes late, traffic is backed up past the circle, so start without me and save me a seat near the front" $E > /dev/null 2>&1 &)
+            sleep 3; press select; sleep 8; shoot transcript-check
+            press down; shoot transcript-check-stopped
+            press back; sleep 1
             pebble kill || true
             cd "$ROOT"
           done
