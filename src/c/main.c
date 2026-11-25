@@ -9,6 +9,7 @@
 #define PERSIST_KEY_VIBE_ALARM 4
 #define PERSIST_KEY_VIBE_TIMER 5
 #define PERSIST_KEY_QUIET_LISTEN 6
+#define PERSIST_KEY_AUTO_SEND 9
 
 static char s_agent_name[AGENT_NAME_LEN] = "your agent";
 static bool s_confirm = false;
@@ -16,6 +17,8 @@ static bool s_quick_talk = true;
 static int s_vibe_alarm = VibeStrong;
 static int s_vibe_timer = VibeStrong;
 static bool s_quiet_listen = false;
+// Seconds the check screens wait before sending by themselves; 0 is never.
+static int s_auto_send = 15;
 
 const char *settings_agent_name(void) {
   return s_agent_name;
@@ -33,6 +36,10 @@ bool settings_quiet_listen(void) {
   return s_quiet_listen;
 }
 
+int settings_auto_send(void) {
+  return s_auto_send;
+}
+
 Vibe settings_vibe(ClockKind kind) {
   int v = kind == ClockKindTimer ? s_vibe_timer : s_vibe_alarm;
   return (v >= VibeStrong && v <= VibeOff) ? (Vibe)v : VibeStrong;
@@ -47,6 +54,7 @@ static void prv_load_settings(void) {
   if (persist_exists(PERSIST_KEY_VIBE_ALARM)) s_vibe_alarm = persist_read_int(PERSIST_KEY_VIBE_ALARM);
   if (persist_exists(PERSIST_KEY_VIBE_TIMER)) s_vibe_timer = persist_read_int(PERSIST_KEY_VIBE_TIMER);
   if (persist_exists(PERSIST_KEY_QUIET_LISTEN)) s_quiet_listen = persist_read_bool(PERSIST_KEY_QUIET_LISTEN);
+  if (persist_exists(PERSIST_KEY_AUTO_SEND)) s_auto_send = persist_read_int(PERSIST_KEY_AUTO_SEND);
 }
 
 bool comm_send_transcript(const char *text, int32_t request_id, bool done_listening) {
@@ -201,6 +209,11 @@ static void prv_inbox(DictionaryIterator *iter, void *ctx) {
     s_quick_talk = prv_int(iter, MESSAGE_KEY_QUICK_TALK, 1) != 0;
     persist_write_bool(PERSIST_KEY_QUICK_TALK, s_quick_talk);
     settings_changed = true;
+  }
+  if (dict_find(iter, MESSAGE_KEY_AUTO_SEND)) {
+    s_auto_send = prv_int(iter, MESSAGE_KEY_AUTO_SEND, 15);
+    if (s_auto_send < 0 || s_auto_send > 120) s_auto_send = 15;
+    persist_write_int(PERSIST_KEY_AUTO_SEND, s_auto_send);
   }
   if (dict_find(iter, MESSAGE_KEY_VIBE_ALARM)) {
     s_vibe_alarm = prv_int(iter, MESSAGE_KEY_VIBE_ALARM, 0);

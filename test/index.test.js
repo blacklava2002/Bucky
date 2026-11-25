@@ -90,7 +90,7 @@ test('settings reach the watch on ready', () => {
   const h = host(PLUGINS, null);
   h.listeners.ready();
   const sent = h.sent.pop();
-  assert.deepEqual({ ...sent, PROMPTS: undefined }, { AGENT_NAME: 'Claude', CONFIRM: 0, QUICK_TALK: 1, QUIET_LISTEN: 0, VIBE_ALARM: 0, VIBE_TIMER: 0, BG_COLOR: 0, CLOCK_COLOR: 0, PROMPTS: undefined });
+  assert.deepEqual({ ...sent, PROMPTS: undefined }, { AGENT_NAME: 'Claude', CONFIRM: 0, QUICK_TALK: 1, QUIET_LISTEN: 0, AUTO_SEND: 15, VIBE_ALARM: 0, VIBE_TIMER: 0, BG_COLOR: 0, CLOCK_COLOR: 0, PROMPTS: undefined });
   assert.equal(sent.PROMPTS.split('\n')[0], "What's the current weather?");
 });
 
@@ -755,4 +755,16 @@ test('settings back up to JSON and restore', () => {
   assert.match(page.error, /isn't a settings backup/);
   fresh.listeners.configmessage({ data: { type: 'restore', backup: 'not json' }, respond: (r) => { page = r; } });
   assert.match(page.error, /JSON/);
+});
+
+test('the auto-send delay is a setting, 15 seconds by default', () => {
+  const h = host(PLUGINS, null);
+  let page;
+  h.listeners.configmessage({ data: { type: 'state' }, respond: (r) => { page = r; } });
+  assert.equal(page.autoSend, 15);
+  h.listeners.configmessage({ data: { type: 'set', autoSend: 0 }, respond: (r) => { page = r; } });
+  assert.equal(page.autoSend, 0);
+  assert.equal(h.sent.pop().AUTO_SEND, 0);
+  h.listeners.configmessage({ data: { type: 'set', autoSend: 7 }, respond: (r) => { page = r; } });
+  assert.equal(page.autoSend, 15);
 });

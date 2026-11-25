@@ -1,7 +1,9 @@
 // The reply screen. The sprite talking, a headline beside it and the answer under it,
 // scrolling with Up and Down. Back returns home. Any feature with something to say uses it:
 // weather, music and battery today, plugin and agent replies later. A message to send uses it
-// too, asking first: Select sends it, Back drops it.
+// too, asking first: Select sends it, Back drops it. So does what you just said, when
+// "Confirm transcription" is on. Both check screens count down and send by themselves
+// (settings_auto_send()); Up, Down or Back stops the count.
 #include "app.h"
 
 #define HEADLINE_LEN 64
@@ -15,8 +17,12 @@ static TextLayer *s_headline;
 static TextLayer *s_body;
 static char s_headline_text[HEADLINE_LEN];
 static char s_body_text[BODY_LEN];
-static bool s_confirm;
+typedef enum { CheckNone = 0, CheckMessage, CheckTranscript } Check;
+static Check s_check;
 static int32_t s_confirm_id;
+static char s_said[BODY_LEN - 80];
+static int s_left;
+static AppTimer *s_tick;
 
 static GFont prv_body_font(void) {
   return fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD);
@@ -43,15 +49,83 @@ static int prv_widest_word(const char *text, GFont font) {
   return widest;
 }
 
-static void prv_send(ClickRecognizerRef rec, void *ctx) {
+static void prv_stop_count(void) {
+  if (s_tick) app_timer_cancel(s_tick);
+  s_tick = NULL;
+}
+
+// The words under the headline: what's being sent, then the count or the buttons.
+static void prv_check_body(void) {
+  const char *how = s_check == CheckTranscript ? "Select sends, Back drops it." : "Select sends, Back cancels.";
+  if (s_tick) {
+    snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\nSending in %ds.\n%s", s_said, s_left, how);
+  } else {
+    snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\n%s", s_said, how);
+  }
+  if (s_body) {
+    text_layer_set_text(s_body, s_body_text);
+    layer_mark_dirty(text_layer_get_layer(s_body));
+  }
+}
+
+static void prv_do_send(void) {
+  Check check = s_check;
   int32_t id = s_confirm_id;
-  s_confirm = false;
+  char said[sizeof(s_said)];
+  snprintf(said, sizeof(said), "%s", s_said);
+  prv_stop_count();
+  s_check = CheckNone;
   window_stack_remove(s_window, true);
-  home_confirm_send(id);
+  if (check == CheckMessage) home_confirm_send(id);
+  else if (check == CheckTranscript) home_send_text(said);
+}
+
+static void prv_count(void *ctx) {
+  s_tick = NULL;
+  if (--s_left <= 0) {
+    vibes_short_pulse();
+    prv_do_send();
+    return;
+  }
+  s_tick = app_timer_register(1000, prv_count, NULL);
+  prv_check_body();
+}
+
+static void prv_send(ClickRecognizerRef rec, void *ctx) {
+  prv_do_send();
+}
+
+// Up and Down still scroll, and stop the count so you can keep reading.
+static void prv_up(ClickRecognizerRef rec, void *ctx) {
+  if (s_tick) {
+    prv_stop_count();
+    prv_check_body();
+  }
+  scroll_layer_scroll_up_click_handler(rec, s_scroll);
+}
+
+static void prv_down(ClickRecognizerRef rec, void *ctx) {
+  if (s_tick) {
+    prv_stop_count();
+    prv_check_body();
+  }
+  scroll_layer_scroll_down_click_handler(rec, s_scroll);
+}
+
+static void prv_back(ClickRecognizerRef rec, void *ctx) {
+  Check check = s_check;
+  prv_stop_count();
+  s_check = CheckNone;
+  window_stack_remove(s_window, true);
+  if (check == CheckTranscript) home_transcript_dropped();
 }
 
 static void prv_click_config(void *ctx) {
-  if (s_confirm) window_single_click_subscribe(BUTTON_ID_SELECT, prv_send);
+  if (!s_check) return;
+  window_single_click_subscribe(BUTTON_ID_SELECT, prv_send);
+  window_single_repeating_click_subscribe(BUTTON_ID_UP, 100, prv_up);
+  window_single_repeating_click_subscribe(BUTTON_ID_DOWN, 100, prv_down);
+  window_single_click_subscribe(BUTTON_ID_BACK, prv_back);
 }
 
 static void prv_load(Window *window) {
@@ -134,20 +208,31 @@ static void prv_load(Window *window) {
 }
 
 static void prv_unload(Window *window) {
+  prv_stop_count();
   text_layer_destroy(s_body);
   text_layer_destroy(s_headline);
   bitmap_layer_destroy(s_sprite);
   scroll_layer_destroy(s_scroll);
   window_destroy(s_window);
   s_window = NULL;
-  s_confirm = false;
+  s_body = NULL;
+  // Closed some other way (another screen pushed over it and the app left): nothing is sent,
+  // and a held transcript lets Quiet Time go back.
+  if (s_check == CheckTranscript) home_transcript_dropped();
+  s_check = CheckNone;
 }
 
-static void prv_push(const char *headline, const char *body) {
+static void prv_push(Check check, const char *headline, const char *body) {
+  // A newer screen replaces this one; a check it held is dropped, not sent (see prv_unload).
   if (s_window) window_stack_remove(s_window, false);
+  s_check = check;
   snprintf(s_headline_text, sizeof(s_headline_text), "%s", headline ? headline : "");
-  if (s_confirm) {
-    snprintf(s_body_text, sizeof(s_body_text), "\"%s\"\n\nSelect sends, Back cancels.", body ? body : "");
+  prv_stop_count();
+  if (s_check) {
+    snprintf(s_said, sizeof(s_said), "%s", body ? body : "");
+    s_left = settings_auto_send();
+    if (s_left > 0) s_tick = app_timer_register(1000, prv_count, NULL);
+    prv_check_body();
   } else {
     snprintf(s_body_text, sizeof(s_body_text), "%s", body ? body : "");
   }
@@ -161,14 +246,16 @@ static void prv_push(const char *headline, const char *body) {
 }
 
 void reply_window_push(const char *headline, const char *body) {
-  s_confirm = false;
-  prv_push(headline, body);
+  prv_push(CheckNone, headline, body);
 }
 
 void reply_window_push_confirm(const char *headline, const char *body, int32_t request_id) {
-  s_confirm = true;
   s_confirm_id = request_id;
-  prv_push(headline, body);
+  prv_push(CheckMessage, headline, body);
   // A message is waiting on you: one buzz, so it isn't missed with the watch down.
   vibes_short_pulse();
+}
+
+void reply_window_push_transcript(const char *text) {
+  prv_push(CheckTranscript, "Send this?", text);
 }

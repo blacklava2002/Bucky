@@ -87,6 +87,9 @@ your agent instead.
     "tell Alex ..." works from then on. Settings lists them, with a button to forget them.
   - **Check first:** by default the watch shows "Send to Sam?" and the words before anything is
     sent. Select sends, Back drops it. You can turn this off in settings.
+  - **Send by itself:** the message check and the transcript check send by themselves after 15
+    seconds, with a countdown on screen. Up, Down or Back stops it. Change the wait or turn it
+    off in settings.
 - **Notes:** "take a note that the filter is size 16x25", "note to self buy stamps", "jot down
   ...". Saved by the notes plugin picked in settings: Notes (Index), Apple Notes, Google Tasks &
   Keep, Notion, Obsidian, Roam, or any plugin with a `create_note` action.
@@ -121,7 +124,7 @@ your agent instead.
   how the watch draws every pin, so seconds only show in the app list and in the app itself. Pins come and go with the list. "Open Bucky" on a pin
   opens the Timers or Alarms list. The Pebble app asks once to let Bucky use the timeline.
 - **Settings page** (in the Pebble app): pick the agent (shows whether each is signed in),
-  the example prompts, transcript check before acting, quick-launch listening, Quiet Time while
+  the example prompts, transcript check before acting and how long the checks wait before sending, quick-launch listening, Quiet Time while
   listening (a notification popping up mid-sentence stops the watch's dictation, so Bucky can turn
   Quiet Time on with its notifications hidden while you talk, then put both back), what Bucky does
   itself, the messaging plugin, name aliases, message check, the notes and reminders plugins,

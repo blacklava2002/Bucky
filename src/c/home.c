@@ -189,13 +189,20 @@ static void prv_dictation_cb(DictationSession *session, DictationSessionStatus s
       prv_finish(false, "Dictation failed", "Select to try again.");
       return;
   }
+  // "Confirm transcription": the words on the app's own screen, which can count down
+  // and send by itself. The phone hears nothing until it's sent.
+  if (settings_confirm()) {
+    prv_show_idle();
+    reply_window_push_transcript(transcription);
+    return;
+  }
   prv_send(transcription);
 }
 
 static void prv_listen(void *ctx) {
   s_quiet_timer = NULL;
   if (!s_dictation) return;
-  dictation_session_enable_confirmation(s_dictation, settings_confirm());
+  dictation_session_enable_confirmation(s_dictation, false);
   dictation_session_enable_error_dialogs(s_dictation, false);
   dictation_session_start(s_dictation);
 }
@@ -470,6 +477,10 @@ void home_handle_result(int32_t request_id, int ok, const char *text, const char
 void home_send_text(const char *text) {
   if (!s_window || s_waiting || !text || !text[0]) return;
   prv_send(text);
+}
+
+void home_transcript_dropped(void) {
+  prv_unquiet();
 }
 
 void home_talk(void) {

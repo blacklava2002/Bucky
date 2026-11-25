@@ -64,7 +64,8 @@
       "LISTEN",
       "LISTEN_READY",
       "BG_COLOR",
-      "CLOCK_COLOR"
+      "CLOCK_COLOR",
+      "AUTO_SEND"
     ],
     "resources": {
       "media": [

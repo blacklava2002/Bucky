@@ -12,6 +12,8 @@ bool settings_confirm(void);
 bool settings_quick_talk(void);
 // Turn Quiet Time on while listening (the phone does the switching).
 bool settings_quiet_listen(void);
+// Seconds the check screens (transcript, message) wait before sending by themselves; 0 is never.
+int settings_auto_send(void);
 // How alarms and timers buzz: the same numbers the phone's settings use.
 typedef enum { VibeStrong = 0, VibeGentle = 1, VibeNudge = 2, VibeOff = 3 } Vibe;
 Vibe settings_vibe(ClockKind kind);
@@ -44,6 +46,8 @@ void home_refresh_settings(void);
 void home_confirm_send(int32_t request_id);
 // Sends words as if they'd been said, or listens again ("Did you mean..." screen).
 void home_send_text(const char *text);
+// Back on the transcript check screen: nothing is sent.
+void home_transcript_dropped(void);
 void home_talk(void);
 // The phone has turned Quiet Time on: start listening.
 void home_quiet_ready(void);
@@ -65,6 +69,9 @@ const char *prompts_get(int index);
 void reply_window_push(const char *headline, const char *body);
 // The same screen asking first: Select calls home_confirm_send(request_id), Back cancels.
 void reply_window_push_confirm(const char *headline, const char *body, int32_t request_id);
+// The same again for what you just said: Select calls home_send_text, Back home_transcript_dropped.
+// Both check screens send by themselves after settings_auto_send() seconds unless a button is pressed.
+void reply_window_push_transcript(const char *text);
 
 // "Did you mean..." (suggest.c): Up the alarm, Down the reminder, Select listens again.
 void suggest_window_push(const char *headline, const char *label, const char *choices);
