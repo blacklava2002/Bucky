@@ -1,0 +1,69 @@
+name: Store screenshots
+
+# Throwaway: runs only on this branch, to make the store listing's screenshots.
+on:
+  push:
+    branches: [store-screenshots]
+
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Pebble SDK
+        run: |
+          pipx install uv
+          pipx install pebble-tool
+          pebble sdk install latest
+      - name: Shoot
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libsdl2-2.0-0 libpixman-1-0 libfdt1 libglib2.0-0 > /dev/null
+          export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy
+          ROOT=$PWD; mkdir -p shots; DEMO=$(mktemp -d); cp -r . "$DEMO"
+          cat .github/emulator/demo-weather.js .github/emulator/demo-plugins.js >> "$DEMO/src/pkjs/index.js"
+          sed -i "s/Browns Mills/Springfield/" "$DEMO/src/pkjs/index.js"
+          cat >> "$DEMO/src/pkjs/index.js" <<'JS'
+          try {
+            localStorage.setItem('confirm', 'true');
+            localStorage.setItem('prompts', JSON.stringify([
+              "What's the current weather?",
+              'Set a 5 minute tea timer.',
+              'Set an alarm for 7am tomorrow.',
+              'Remind me to call Mom at 6pm.',
+              'Remind me to take out the trash tomorrow at 8pm.',
+              'Remind me to water the plants on Saturday at 9am.',
+              'Set a 20 minute pizza timer.'
+            ]));
+          } catch (e) { /* no storage */ }
+          JS
+          (cd "$DEMO" && pebble build)
+          for P in basalt chalk emery gabbro; do
+            E="--emulator $P"
+            press() { pebble emu-button click "$@" $E; sleep 1.5; }
+            shoot() { pebble screenshot $E --no-open "$ROOT/shots/$P-$1.png" || true; }
+            pick() { press up; for i in $(seq 1 $1); do press down; done; press select; sleep 4; }
+            cd "$DEMO"; pebble install $E || { cd "$ROOT"; continue; }
+            pebble emu-time-format --format 12h $E || true
+            sleep 6
+            shoot home
+            press up; shoot prompts
+            press select; sleep 4; shoot reply
+            press back; sleep 2
+            pick 1; shoot timer-set
+            pick 2; shoot alarm-set
+            pick 3; shoot reminder-set
+            pick 4; pick 5; pick 6
+            shoot home-busy
+            press down; shoot menu
+            press select; shoot alarms
+            press back; press down; press select; shoot timers
+            press back; press down; press select; shoot reminders
+            press back; press back; sleep 1
+            pebble install $E > /dev/null 2>&1; sleep 6
+            (timeout 30 pebble transcribe "Tell Sam the game starts at seven so meet us at the field by six thirty" $E > /dev/null 2>&1 &)
+            sleep 3; press select; sleep 6; shoot transcript-check
+            pebble kill || true
+            cd "$ROOT"
+          done
+          for f in shots/*.png; do echo "SHOT $f"; base64 -w0 "$f"; echo; echo "END SHOT"; done
