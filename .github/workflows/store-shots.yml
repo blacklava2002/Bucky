@@ -38,7 +38,7 @@ jobs:
           } catch (e) { /* no storage */ }
           JS
           (cd "$DEMO" && pebble build)
-          for P in basalt chalk emery gabbro; do
+          for P in diorite flint; do
             E="--emulator $P"
             press() { pebble emu-button click "$@" $E; sleep 1.5; }
             shoot() { pebble screenshot $E --no-open "$ROOT/shots/$P-$1.png" || true; }
