@@ -169,6 +169,11 @@ version lives. Each new version pushed to `main` gets its own release, `vX.Y.Z`,
 `Bucky_X.Y.Z.pbw` attached; the newest is always at
 https://github.com/blacklava2002/Bucky/releases/latest
 
+Every push to a branch other than `main` also gets a dev build: a pre-release named
+`Bucky dev build: <branch>` (tag `dev-<branch>`) with that branch's .pbw to sideload. The next push
+to the branch replaces it, so there is one per branch. Dev builds aren't versions and never go to
+the app store.
+
 To release, bump the version and push:
 
 ```sh
