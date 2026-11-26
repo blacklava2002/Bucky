@@ -768,3 +768,17 @@ test('the auto-send delay is a setting, 15 seconds by default', () => {
   h.listeners.configmessage({ data: { type: 'set', autoSend: 7 }, respond: (r) => { page = r; } });
   assert.equal(page.autoSend, 15);
 });
+
+test('flip a coin is answered on the phone, never by an agent', async () => {
+  let called = false;
+  const h = host(PLUGINS, () => { called = true; return Promise.resolve({ ok: true }); });
+  h.listeners.configmessage({ data: { type: 'set', agent: '0d33014e-5d56-42ea-9665-3ebf182b4cfb' }, respond: () => {} });
+  h.listeners.appmessage({ payload: { TRANSCRIPT: 'Flip a coin.', REQ_ID: 41 } });
+  await tick();
+  assert.equal(called, false);
+  const last = h.sent.pop();
+  assert.equal(last.REQ_ID, 41);
+  assert.equal(last.RESULT_OK, 1);
+  assert.ok(['Heads', 'Tails'].includes(last.RESULT_TEXT), last.RESULT_TEXT);
+  assert.equal(last.RESULT_DETAIL, 'Flipped a coin.');
+});

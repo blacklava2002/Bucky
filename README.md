@@ -57,6 +57,9 @@ your agent instead.
   phone charged". Read from the Pebble app's built-in Phone plugin and shown on the reply screen
   ("Phone at 62%", with Wi-Fi or mobile data under it). The plugin gives the level only, not
   whether the phone is charging.
+- **Flip a coin:** "flip a coin", "coin toss", "heads or tails". Bucky flips it himself and shows
+  Heads or Tails with a buzz, whichever agent is picked and even with none. Only the coin ask on its
+  own counts, so "ask Claude to flip a coin" still goes to Claude.
 - **Find my phone:** "find my phone", "where's my phone", "I lost my phone" ring the phone for a
   minute, even on silent, through the Pebble app's built-in Find My Phone plugin. "Stop ringing" or
   "I found it" stops it sooner. The Pebble app asks once to let Bucky use Find My Phone.

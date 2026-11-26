@@ -17,6 +17,7 @@ var destinations = require('./destinations');
 var quietMod = require('./quiet');
 var transcripts = require('./transcripts');
 var sources = require('./sources');
+var coin = require('./coin');
 
 var AGENT_ACTION = 'send_to_agent';
 // "Isn't available" comes back before the plugin takes the message, so trying again can't
@@ -323,6 +324,10 @@ function handleTranscript(text, requestId) {
   log('heard: ' + text);
   transcriptLog.heard(requestId, text);
   prefs.refresh();
+  if (coin.ask(text)) {
+    result(requestId, 1, coin.flip(), 'Flipped a coin.');
+    return;
+  }
   var agents = listAgents();
   var addressed = intent.pickAgent(text, agents);
   if (addressed) {
