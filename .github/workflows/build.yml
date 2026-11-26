@@ -11,6 +11,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # One build per branch at a time, so two quick pushes can't race on the branch's dev build.
+    concurrency:
+      group: build-${{ github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -118,6 +122,28 @@ jobs:
         with:
           name: ${{ steps.version.outputs.name }}_${{ steps.version.outputs.version }}
           path: ${{ steps.version.outputs.pbw }}
+      # A dev build per branch: every push to a branch other than main replaces that branch's
+      # pre-release (tag dev-<branch>) with a fresh .pbw to sideload. Pre-releases never go to the
+      # app store and aren't versions, so nothing here touches the releases below.
+      - name: Publish a dev build for this branch
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main' && startsWith(github.ref, 'refs/heads/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          NAME: ${{ steps.version.outputs.name }}
+          PBW: ${{ steps.version.outputs.pbw }}
+        run: |
+          set -euo pipefail
+          SLUG=$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9._-' '-' | sed -E 's/-+/-/g; s/^-//; s/-$//')
+          TAG="dev-$SLUG"
+          FILE="${NAME}_${VERSION}-${SLUG}.pbw"
+          cp "$PBW" "$FILE"
+          gh release delete "$TAG" --cleanup-tag --yes > /dev/null 2>&1 || true
+          printf 'Dev build of the %s branch at %s, for sideloading. Not a release: it never goes to the app store, and the next push to %s replaces it.\n' "$BRANCH" "${GITHUB_SHA:0:7}" "$BRANCH" > dev-notes.md
+          gh release create "$TAG" "$FILE" --prerelease --latest=false --target "$GITHUB_SHA" \
+            --title "$NAME dev build: $BRANCH" --notes-file dev-notes.md
+          echo "::notice::Dev build for $BRANCH: $(gh release view "$TAG" --json url --jq .url)"
       # A release per version: bump "version" in package.json and push to main.
       # A push that doesn't change the version still builds and tests, but publishes nothing.
       - name: Publish a release for a new version
