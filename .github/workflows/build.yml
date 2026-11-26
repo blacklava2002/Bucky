@@ -85,6 +85,9 @@ jobs:
             sleep 3; press select; sleep 8; shoot transcript-check
             press down; shoot transcript-check-stopped
             press back; sleep 1
+            pebble install $E > /dev/null 2>&1; sleep 6
+            (timeout 30 pebble transcribe "Flip a coin" $E > /dev/null 2>&1 &)
+            sleep 3; press select; sleep 5; press select; sleep 2; shoot coin-flip
             pebble kill || true
             cd "$ROOT"
           done
