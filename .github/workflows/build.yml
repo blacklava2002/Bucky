@@ -59,6 +59,8 @@ jobs:
           ROOT=$PWD; DEMO=$(mktemp -d); cp -r . "$DEMO"; cat .github/emulator/demo-weather.js .github/emulator/demo-plugins.js >> "$DEMO/src/pkjs/index.js"
           # "Confirm transcription" on, so a dictated line stops on the check screen.
           { echo "localStorage.setItem('confirm','true');"; cat "$DEMO/src/pkjs/index.js"; } > "$DEMO/index.tmp" && mv "$DEMO/index.tmp" "$DEMO/src/pkjs/index.js"
+          # The demo's coin lands heads, then tails, so both screens get a shot.
+          echo "(function () { var c = require('./coin'), n = 0; c.flip = function () { return n++ % 2 ? 'Tails' : 'Heads'; }; })();" >> "$DEMO/src/pkjs/index.js"
           (cd "$DEMO" && pebble build > /dev/null) || DEMO=$ROOT
           for P in emery basalt chalk; do
             E="--emulator $P"
@@ -91,7 +93,9 @@ jobs:
             press back; sleep 1
             pebble install $E > /dev/null 2>&1; sleep 6
             (timeout 30 pebble transcribe "Flip a coin" $E > /dev/null 2>&1 &)
-            sleep 3; press select; sleep 5; press select; sleep 2; shoot coin-flip
+            sleep 3; press select; sleep 5; press select; sleep 2; shoot coin-heads
+            (timeout 30 pebble transcribe "Flip a coin" $E > /dev/null 2>&1 &)
+            sleep 3; press select; sleep 5; press select; sleep 2; shoot coin-tails
             pebble kill || true
             cd "$ROOT"
           done
