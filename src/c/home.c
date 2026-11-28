@@ -410,7 +410,8 @@ static void prv_load(Window *window) {
   bitmap_layer_set_bitmap(s_sprite, idle);
   layer_add_child(root, bitmap_layer_get_layer(s_sprite));
 
-  s_main = text_layer_create(GRect(left + status_inset, status_top, width - 2 * status_inset, status_h));
+  s_main_frame = GRect(left + status_inset, status_top, width - 2 * status_inset, status_h);
+  s_main = text_layer_create(s_main_frame);
   text_layer_set_font(s_main, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
   text_layer_set_text_alignment(s_main, GTextAlignmentCenter);
   text_layer_set_background_color(s_main, GColorClear);
