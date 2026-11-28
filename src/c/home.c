@@ -11,6 +11,7 @@
 #define WAVE_MS 3000
 #define QUICK_EXIT_MS 4000
 #define CLEAR_MS 8000
+#define COIN_TEXT_H 36
 // How long to wait for the phone to turn Quiet Time on before listening anyway.
 #define QUIET_WAIT_MS 1500
 
@@ -22,6 +23,11 @@ static GBitmap *s_icon_menu;
 static TextLayer *s_time;
 static BitmapLayer *s_sprite;
 static TextLayer *s_main;
+// A coin flip shows a coin where Bucky stands, and the word big. Both go back with the text.
+static GBitmap *s_coin;
+static bool s_coin_shown;
+static GRect s_sprite_frame;
+static GRect s_main_frame;
 static DictationSession *s_dictation;
 
 static char s_time_text[8];
@@ -43,7 +49,7 @@ static bool s_quieted;
 static void prv_unquiet(void);
 
 static void prv_set_frame(SpriteFrame frame) {
-  if (s_sprite) {
+  if (s_sprite && !s_coin_shown) {
     bitmap_layer_set_bitmap(s_sprite, sprite_frame(frame));
     layer_mark_dirty(bitmap_layer_get_layer(s_sprite));
   }
@@ -82,17 +88,67 @@ static void prv_show(const char *main, const char *sub) {
   if (s_main) text_layer_set_text(s_main, s_main_text);
 }
 
+static void prv_coin_off(void) {
+  if (!s_coin_shown) return;
+  s_coin_shown = false;
+  if (s_main) {
+    text_layer_set_font(s_main, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
+    layer_set_frame(text_layer_get_layer(s_main), s_main_frame);
+  }
+  if (s_sprite) {
+    layer_set_frame(bitmap_layer_get_layer(s_sprite), s_sprite_frame);
+    bitmap_layer_set_bitmap(s_sprite, sprite_frame(SpriteIdle));
+  }
+  if (s_coin) {
+    gbitmap_destroy(s_coin);
+    s_coin = NULL;
+  }
+}
+
+// side 2 is tails, anything else heads.
+static void prv_coin_on(int side) {
+  if (!s_window || !s_sprite || !s_main) return;
+#if PBL_DISPLAY_WIDTH >= 200
+  uint32_t id = side == 2 ? RESOURCE_ID_COIN_TAILS_BIG : RESOURCE_ID_COIN_HEADS_BIG;
+#else
+  uint32_t id = side == 2 ? RESOURCE_ID_COIN_TAILS : RESOURCE_ID_COIN_HEADS;
+#endif
+  GBitmap *coin = gbitmap_create_with_resource(id);
+  if (!coin) return;
+  if (s_coin) gbitmap_destroy(s_coin);
+  s_coin = coin;
+  s_coin_shown = true;
+  GRect bounds = layer_get_bounds(window_get_root_layer(s_window));
+  GRect text = s_main_frame;
+  text.size.h = COIN_TEXT_H;
+  layer_set_frame(text_layer_get_layer(s_main), text);
+  text_layer_set_font(s_main, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  // The coin sits in the middle of the space under the word.
+  GSize size = gbitmap_get_bounds(coin).size;
+  int width = bounds.size.w - ACTION_BAR_WIDTH;
+  int below = text.origin.y + text.size.h;
+  int space = bounds.size.h - PBL_IF_ROUND_ELSE(8, 0) - below;
+  int top = below + (space > size.h ? (space - size.h) / 2 : 0);
+  layer_set_frame(bitmap_layer_get_layer(s_sprite), GRect((width - size.w) / 2, top, size.w, size.h));
+  bitmap_layer_set_bitmap(s_sprite, coin);
+}
+
 static void prv_clear(void *ctx) {
   s_clear_timer = NULL;
-  if (!s_waiting) prv_show("", "");
+  if (!s_waiting) {
+    prv_coin_off();
+    prv_show("", "");
+  }
 }
 
 static void prv_show_idle(void) {
+  prv_coin_off();
   prv_show("", "");
   prv_set_frame(SpriteIdle);
 }
 
 static void prv_start_waiting(void) {
+  prv_coin_off();
   s_waiting = true;
   prv_cancel(&s_anim_timer);
   s_anim_timer = app_timer_register(ANIM_MS, prv_anim_tick, NULL);
@@ -348,7 +404,8 @@ static void prv_load(Window *window) {
 #if defined(PBL_ROUND)
   sprite_top -= 6;
 #endif
-  s_sprite = bitmap_layer_create(GRect(left + (width - size.w) / 2, sprite_top, size.w, size.h));
+  s_sprite_frame = GRect(left + (width - size.w) / 2, sprite_top, size.w, size.h);
+  s_sprite = bitmap_layer_create(s_sprite_frame);
   bitmap_layer_set_compositing_mode(s_sprite, GCompOpSet);
   bitmap_layer_set_bitmap(s_sprite, idle);
   layer_add_child(root, bitmap_layer_get_layer(s_sprite));
@@ -390,6 +447,9 @@ static void prv_unload(Window *window) {
   prv_unquiet();
   if (s_dictation) dictation_session_destroy(s_dictation);
   s_dictation = NULL;
+  if (s_coin) gbitmap_destroy(s_coin);
+  s_coin = NULL;
+  s_coin_shown = false;
   text_layer_destroy(s_main);
   bitmap_layer_destroy(s_sprite);
   text_layer_destroy(s_time);
@@ -424,6 +484,12 @@ void home_refresh_settings(void) {
   text_layer_set_text_color(s_time, theme_clock());
   text_layer_set_text_color(s_main, theme_text());
   layer_mark_dirty(window_get_root_layer(s_window));
+}
+
+void home_handle_coin(int32_t request_id, int side, const char *text) {
+  if (!s_window || request_id != s_request_id || !s_waiting) return;
+  prv_finish(true, text, "");
+  prv_coin_on(side);
 }
 
 void home_handle_result(int32_t request_id, int ok, const char *text, const char *detail,

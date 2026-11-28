@@ -325,7 +325,8 @@ function handleTranscript(text, requestId) {
   transcriptLog.heard(requestId, text);
   prefs.refresh();
   if (coin.ask(text)) {
-    result(requestId, 1, coin.flip(), 'Flipped a coin.');
+    var side = coin.flip();
+    send({ REQ_ID: requestId, RESULT_OK: 1, RESULT_TEXT: side, RESULT_DETAIL: 'Flipped a coin.', COIN: side === 'Tails' ? 2 : 1 });
     return;
   }
   var agents = listAgents();

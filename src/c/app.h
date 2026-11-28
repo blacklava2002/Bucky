@@ -41,6 +41,8 @@ void home_window_push(bool start_talking);
 void home_handle_result(int32_t request_id, int ok, const char *text, const char *detail,
                         const char *reply);
 void home_handle_clock(int32_t request_id, int kind, int32_t value, const char *label);
+// A coin flip: side 1 heads, 2 tails. The coin takes the sprite's place, with the word big over it.
+void home_handle_coin(int32_t request_id, int side, const char *text);
 void home_refresh_settings(void);
 // Select on the "Send?" screen.
 void home_confirm_send(int32_t request_id);

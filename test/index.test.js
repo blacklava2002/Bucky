@@ -781,4 +781,5 @@ test('flip a coin is answered on the phone, never by an agent', async () => {
   assert.equal(last.RESULT_OK, 1);
   assert.ok(['Heads', 'Tails'].includes(last.RESULT_TEXT), last.RESULT_TEXT);
   assert.equal(last.RESULT_DETAIL, 'Flipped a coin.');
+  assert.equal(last.COIN, last.RESULT_TEXT === 'Tails' ? 2 : 1);
 });

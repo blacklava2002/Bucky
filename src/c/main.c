@@ -244,6 +244,10 @@ static void prv_inbox(DictionaryIterator *iter, void *ctx) {
                       prv_string(iter, MESSAGE_KEY_CLOCK_LABEL));
     return;
   }
+  if (dict_find(iter, MESSAGE_KEY_COIN)) {
+    home_handle_coin(request_id, (int)prv_int(iter, MESSAGE_KEY_COIN, 1), prv_string(iter, MESSAGE_KEY_RESULT_TEXT));
+    return;
+  }
   if (dict_find(iter, MESSAGE_KEY_RESULT_OK)) {
     home_handle_result(request_id,
                        (int)prv_int(iter, MESSAGE_KEY_RESULT_OK, 0),

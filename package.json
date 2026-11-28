@@ -65,7 +65,8 @@
       "LISTEN_READY",
       "BG_COLOR",
       "CLOCK_COLOR",
-      "AUTO_SEND"
+      "AUTO_SEND",
+      "COIN"
     ],
     "resources": {
       "media": [
@@ -195,6 +196,34 @@
           "type": "bitmap",
           "name": "MENU_REMINDERS",
           "file": "images/menu_reminders.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "COIN_HEADS",
+          "file": "images/coin_heads.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "COIN_HEADS_BIG",
+          "file": "images/coin_heads_big.png",
+          "targetPlatforms": [
+            "emery",
+            "gabbro"
+          ]
+        },
+        {
+          "type": "bitmap",
+          "name": "COIN_TAILS",
+          "file": "images/coin_tails.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "COIN_TAILS_BIG",
+          "file": "images/coin_tails_big.png",
+          "targetPlatforms": [
+            "emery",
+            "gabbro"
+          ]
         }
       ]
     },
