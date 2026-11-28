@@ -92,10 +92,11 @@ jobs:
             press down; shoot transcript-check-stopped
             press back; sleep 1
             pebble install $E > /dev/null 2>&1; sleep 6
-            (timeout 30 pebble transcribe "Flip a coin" $E > /dev/null 2>&1 &)
-            sleep 3; press select; sleep 5; press select; sleep 2; shoot coin-heads
-            (timeout 30 pebble transcribe "Flip a coin" $E > /dev/null 2>&1 &)
-            sleep 3; press select; sleep 5; press select; sleep 2; shoot coin-tails
+            for SIDE in heads tails; do
+              pkill -f "pebble transcribe" || true; sleep 2
+              (timeout 40 pebble transcribe "Flip a coin" $E > /dev/null 2>&1 &)
+              sleep 4; press select; sleep 7; press select; sleep 2; shoot coin-$SIDE
+            done
             pebble kill || true
             cd "$ROOT"
           done
